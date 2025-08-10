@@ -66,7 +66,7 @@ npm start         # Frontend only
 
 The app will be available at:
 - Frontend: http://localhost:3000
-- Backend: http://localhost:5000
+- Backend: http://localhost:4000
 
 ## 🏗️ Project Structure
 
