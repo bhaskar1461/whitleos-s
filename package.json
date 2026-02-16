@@ -1,0 +1,44 @@
+{
+  "name": "fitness-journal-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "firebase": "^10.7.1",
+    "lowdb": "^7.0.1",
+    "nanoid": "^5.1.5",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.22.3",
+    "react-scripts": "^5.0.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.14",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.4.21",
+    "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "server": "node server/index.js",
+    "dev": "concurrently \"npm run server\" \"npm start\""
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
