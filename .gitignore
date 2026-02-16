@@ -118,3 +118,5 @@ firebase-debug.*.log
 !public/images/*.jpg
 !public/images/*.jpeg
 !public/images/*.gif
+__pycache__/
+*.pyc
