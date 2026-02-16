@@ -1,0 +1,25 @@
+# FastAPI core
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Migrations
+alembic
+
+# Auth & Security
+python-jose[cryptography]
+passlib[bcrypt]
+
+# Validation
+pydantic[email]
+
+# Redis
+redis
+fastapi-limiter
+fastapi-cache2[redis]
+
+# Environment variables
+python-dotenv
