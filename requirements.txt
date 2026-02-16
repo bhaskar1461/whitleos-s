@@ -18,7 +18,7 @@ pydantic[email]
 
 # Redis
 redis
-fastapi-limiter
+slowapi
 fastapi-cache2[redis]
 
 # Environment variables
