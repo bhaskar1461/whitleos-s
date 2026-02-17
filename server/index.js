@@ -11,6 +11,13 @@ const crypto = require('crypto');
 const { db } = require('./lowdb');
 const { nanoid } = require('nanoid');
 
+let compression = (_req, _res, next) => next();
+try {
+  compression = require('compression');
+} catch (_err) {
+  console.warn('[server] compression package not installed, responses will not be gzipped.');
+}
+
 const PORT = process.env.API_PORT || process.env.PORT || 4000;
 const {
   FRONTEND_URL = 'http://localhost:3000',
@@ -22,6 +29,7 @@ const {
   GOOGLE_CALLBACK_URL = 'http://localhost:4000/auth/google/callback',
   ZEPP_PHONE,
   ZEPP_PASSWORD,
+  ADMIN_TOKEN,
   SESSION_SECRET = 'dev_secret_change_me',
   WEBHOOK_SECRET,
 } = process.env;
@@ -48,6 +56,92 @@ if (!googleOauthConfigured) {
 if (!zeppConfigured) {
   console.warn('[server] Missing ZEPP_PHONE or ZEPP_PASSWORD. Zepp direct sync will be unavailable.');
 }
+if (!hasRealCredential(ADMIN_TOKEN || '')) {
+  console.warn('[server] Missing ADMIN_TOKEN. Admin stats endpoint will be disabled.');
+}
+
+let dbInitialized = false;
+
+async function ensureDbReady() {
+  if (dbInitialized) return;
+  await db.read();
+  db.data = db.data || {};
+  db.data.journal = Array.isArray(db.data.journal) ? db.data.journal : [];
+  db.data.steps = Array.isArray(db.data.steps) ? db.data.steps : [];
+  db.data.meals = Array.isArray(db.data.meals) ? db.data.meals : [];
+  db.data.workouts = Array.isArray(db.data.workouts) ? db.data.workouts : [];
+  db.data.healthData = Array.isArray(db.data.healthData) ? db.data.healthData : [];
+  db.data.webhooks = Array.isArray(db.data.webhooks) ? db.data.webhooks : [];
+  db.data.connections = Array.isArray(db.data.connections) ? db.data.connections : [];
+  db.data.users = Array.isArray(db.data.users) ? db.data.users : [];
+  db.data.analytics = db.data.analytics || {};
+  db.data.analytics.loginsByDate = db.data.analytics.loginsByDate || {};
+  dbInitialized = true;
+}
+
+function upsertUserUsage(user, { incrementLogin = false } = {}) {
+  if (!user?.id) return false;
+
+  db.data.users = Array.isArray(db.data.users) ? db.data.users : [];
+  db.data.analytics = db.data.analytics || {};
+  db.data.analytics.loginsByDate = db.data.analytics.loginsByDate || {};
+
+  const nowIso = new Date().toISOString();
+  const nowMs = Date.now();
+  const normalizedProvider = user.provider || (String(user.id).startsWith('google:') ? 'google' : 'github');
+
+  let changed = false;
+  let existing = db.data.users.find((item) => item.id === user.id);
+  if (!existing) {
+    existing = {
+      id: user.id,
+      provider: normalizedProvider,
+      username: user.username || null,
+      email: user.email || null,
+      avatar: user.avatar || null,
+      firstSeenAt: nowIso,
+      lastSeenAt: nowIso,
+      lastLoginAt: null,
+      loginCount: 0,
+    };
+    db.data.users.push(existing);
+    changed = true;
+  }
+
+  if (existing.provider !== normalizedProvider) {
+    existing.provider = normalizedProvider;
+    changed = true;
+  }
+  if (user.username && existing.username !== user.username) {
+    existing.username = user.username;
+    changed = true;
+  }
+  if (user.email && existing.email !== user.email) {
+    existing.email = user.email;
+    changed = true;
+  }
+  if (user.avatar && existing.avatar !== user.avatar) {
+    existing.avatar = user.avatar;
+    changed = true;
+  }
+
+  const previousSeenMs = new Date(existing.lastSeenAt || 0).getTime();
+  if (!Number.isFinite(previousSeenMs) || nowMs - previousSeenMs > 5 * 60 * 1000) {
+    existing.lastSeenAt = nowIso;
+    changed = true;
+  }
+
+  if (incrementLogin) {
+    existing.loginCount = Number(existing.loginCount || 0) + 1;
+    existing.lastLoginAt = nowIso;
+    existing.lastSeenAt = nowIso;
+    const dayKey = nowIso.slice(0, 10);
+    db.data.analytics.loginsByDate[dayKey] = Number(db.data.analytics.loginsByDate[dayKey] || 0) + 1;
+    changed = true;
+  }
+
+  return changed;
+}
 
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj, done) => done(null, obj));
@@ -61,8 +155,23 @@ if (githubOauthConfigured) {
         callbackURL: GITHUB_CALLBACK_URL,
         scope: ['read:user'],
       },
-      (accessToken, refreshToken, profile, done) => {
-        done(null, { id: profile.id, username: profile.username, avatar: profile.photos?.[0]?.value || '', provider: 'github' });
+      async (_accessToken, _refreshToken, profile, done) => {
+        try {
+          const user = {
+            id: String(profile.id),
+            username: profile.username,
+            avatar: profile.photos?.[0]?.value || '',
+            provider: 'github',
+          };
+
+          await ensureDbReady();
+          const changed = upsertUserUsage(user, { incrementLogin: true });
+          if (changed) await db.write();
+
+          done(null, user);
+        } catch (err) {
+          done(err);
+        }
       }
     )
   );
@@ -94,7 +203,7 @@ if (googleOauthConfigured) {
             refreshToken: refreshToken || null,
           };
 
-          await db.read();
+          await ensureDbReady();
           db.data.connections = db.data.connections || [];
           const existing = db.data.connections.find((x) => x.uid === user.id && x.provider === 'google_fit');
           if (existing) {
@@ -115,6 +224,7 @@ if (googleOauthConfigured) {
               updatedAt: new Date().toISOString(),
             });
           }
+          upsertUserUsage(user, { incrementLogin: true });
           await db.write();
           done(null, user);
         } catch (err) {
@@ -128,6 +238,45 @@ if (googleOauthConfigured) {
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) return next();
   res.status(401).json({ error: 'unauthorized' });
+}
+
+function ensureAdmin(req, res, next) {
+  if (!hasRealCredential(ADMIN_TOKEN || '')) {
+    return res.status(503).json({
+      error: 'admin_not_configured',
+      message: 'Set ADMIN_TOKEN in environment variables to enable admin stats.',
+    });
+  }
+  const provided = req.get('x-admin-token');
+  if (!provided || provided !== ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'admin_unauthorized' });
+  }
+  return next();
+}
+
+function parseTimestamp(value) {
+  if (!value) return NaN;
+  return new Date(value).getTime();
+}
+
+function countUsersActiveSince(users, sinceMs) {
+  return users.filter((user) => {
+    const lastSeenMs = parseTimestamp(user.lastSeenAt || user.lastLoginAt || user.firstSeenAt);
+    return Number.isFinite(lastSeenMs) && lastSeenMs >= sinceMs;
+  }).length;
+}
+
+function buildLoginSeries(loginsByDate, days = 14) {
+  const now = new Date();
+  const result = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - i);
+    const day = d.toISOString().slice(0, 10);
+    result.push({ date: day, logins: Number(loginsByDate[day] || 0) });
+  }
+  return result;
 }
 
 function toPublicUser(user) {
@@ -194,7 +343,7 @@ async function getGoogleConnectionForUser(user) {
     };
   }
 
-  await db.read();
+  await ensureDbReady();
   const connection = (db.data.connections || []).find((x) => x.uid === user.id && x.provider === 'google_fit');
   if (!connection || !connection.accessToken) return null;
   return {
@@ -437,6 +586,7 @@ app.use(
     },
   })
 );
+app.use(compression());
 app.use(
   session({
     secret: SESSION_SECRET,
@@ -537,7 +687,65 @@ app.post('/logout', (req, res) => {
 });
 
 app.get('/api/user', (req, res) => {
-  res.json({ user: toPublicUser(req.user) });
+  if (!req.user) return res.json({ user: null });
+
+  ensureDbReady()
+    .then(() => {
+      const changed = upsertUserUsage(req.user, { incrementLogin: false });
+      if (changed) return db.write();
+      return null;
+    })
+    .catch((err) => {
+      console.error('user analytics touch error', err);
+    })
+    .finally(() => {
+      res.json({ user: toPublicUser(req.user) });
+    });
+});
+
+app.get('/api/admin/stats', ensureAdmin, async (_req, res) => {
+  await ensureDbReady();
+
+  const now = Date.now();
+  const oneDay = 24 * 60 * 60 * 1000;
+  const users = db.data.users || [];
+  const loginsByDate = db.data.analytics?.loginsByDate || {};
+
+  const providerCounts = users.reduce((acc, user) => {
+    const provider = user.provider || 'unknown';
+    acc[provider] = Number(acc[provider] || 0) + 1;
+    return acc;
+  }, {});
+
+  const totalLogins = users.reduce((sum, user) => sum + Number(user.loginCount || 0), 0);
+  const newUsersLast7d = users.filter((user) => {
+    const firstSeen = parseTimestamp(user.firstSeenAt);
+    return Number.isFinite(firstSeen) && firstSeen >= now - 7 * oneDay;
+  }).length;
+
+  return res.json({
+    generatedAt: new Date().toISOString(),
+    users: {
+      total: users.length,
+      active24h: countUsersActiveSince(users, now - oneDay),
+      active7d: countUsersActiveSince(users, now - 7 * oneDay),
+      active30d: countUsersActiveSince(users, now - 30 * oneDay),
+      newUsersLast7d,
+      totalLogins,
+      byProvider: providerCounts,
+    },
+    records: {
+      journal: (db.data.journal || []).length,
+      meals: (db.data.meals || []).length,
+      workouts: (db.data.workouts || []).length,
+      steps: (db.data.steps || []).length,
+      healthData: (db.data.healthData || []).length,
+    },
+    traffic: {
+      todayLogins: Number(loginsByDate[new Date().toISOString().slice(0, 10)] || 0),
+      last14Days: buildLoginSeries(loginsByDate, 14),
+    },
+  });
 });
 
 app.get('/api/health/providers', ensureAuth, async (req, res) => {
@@ -580,7 +788,7 @@ app.post('/api/sync/google-fit', ensureAuth, async (req, res) => {
       fetchGoogleFitWorkouts(googleConnection.accessToken, days),
     ]);
 
-    await db.read();
+    await ensureDbReady();
     db.data.steps = db.data.steps || [];
     db.data.workouts = db.data.workouts || [];
 
@@ -648,7 +856,7 @@ app.post('/api/sync/zepp', ensureAuth, async (req, res) => {
     const syncedAt = new Date().toISOString();
     const date = getDateOnly(syncedAt);
 
-    await db.read();
+    await ensureDbReady();
     db.data.steps = db.data.steps || [];
     db.data.healthData = db.data.healthData || [];
 
@@ -712,14 +920,14 @@ app.post('/api/sync/zepp', ensureAuth, async (req, res) => {
 });
 
 app.get('/api/health-data', ensureAuth, async (req, res) => {
-  await db.read();
+  await ensureDbReady();
   db.data.healthData = db.data.healthData || [];
   const items = db.data.healthData.filter((x) => x.uid === req.user.id).map(withLegacyHealthAliases);
   res.json(items);
 });
 
 app.post('/api/health-data', ensureAuth, async (req, res) => {
-  await db.read();
+  await ensureDbReady();
   db.data.healthData = db.data.healthData || [];
   const normalizedPayload = normalizeHealthDataPayload(req.body || {});
   const item = {
@@ -743,7 +951,7 @@ app.post('/api/health-data', ensureAuth, async (req, res) => {
 });
 
 app.get('/api/health-data/summary', ensureAuth, async (req, res) => {
-  await db.read();
+  await ensureDbReady();
   db.data.healthData = db.data.healthData || [];
   const items = db.data.healthData
     .filter((x) => x.uid === req.user.id)
@@ -773,7 +981,7 @@ app.post('/webhook', async (req, res) => {
     const event = req.get('x-github-event') || 'unknown';
     const delivery = req.get('x-github-delivery') || nanoid();
 
-    await db.read();
+    await ensureDbReady();
     db.data.webhooks = db.data.webhooks || [];
     db.data.webhooks.unshift({ id: delivery, event, payload: req.body, receivedAt: new Date().toISOString() });
     await db.write();
@@ -788,13 +996,13 @@ app.post('/webhook', async (req, res) => {
 // Generic helpers for collections
 function collectionRoutes(name) {
   app.get(`/api/${name}`, ensureAuth, async (req, res) => {
-    await db.read();
+    await ensureDbReady();
     const items = (db.data[name] || []).filter((x) => x.uid === req.user.id);
     res.json(items);
   });
 
   app.post(`/api/${name}`, ensureAuth, async (req, res) => {
-    await db.read();
+    await ensureDbReady();
     const item = { id: nanoid(), uid: req.user.id, ...req.body };
     db.data[name] = db.data[name] || [];
     db.data[name].unshift(item);
@@ -803,7 +1011,7 @@ function collectionRoutes(name) {
   });
 
   app.delete(`/api/${name}/:id`, ensureAuth, async (req, res) => {
-    await db.read();
+    await ensureDbReady();
     const id = req.params.id;
     db.data[name] = (db.data[name] || []).filter((x) => !(x.id === id && x.uid === req.user.id));
     await db.write();
@@ -813,16 +1021,39 @@ function collectionRoutes(name) {
 
 ['journal', 'steps', 'meals', 'workouts'].forEach(collectionRoutes);
 
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
+
 // Serve production build if present
 const buildDir = path.join(__dirname, '..', 'build');
 const buildIndex = path.join(buildDir, 'index.html');
 if (fs.existsSync(buildIndex)) {
-  app.use(express.static(buildDir));
+  app.use(
+    express.static(buildDir, {
+      etag: true,
+      maxAge: '7d',
+      setHeaders: (res, filePath) => {
+        const fileName = path.basename(filePath);
+        if (/\.[a-f0-9]{8}\./i.test(fileName)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          return;
+        }
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      },
+    })
+  );
   app.get(/.*/, (req, res) => {
     res.sendFile(buildIndex);
   });
-} else {
-  app.get('/healthz', (_req, res) => res.json({ ok: true }));
 }
 
-app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
+async function startServer() {
+  try {
+    await ensureDbReady();
+    app.listen(PORT, () => console.log(`[server] listening on http://localhost:${PORT}`));
+  } catch (err) {
+    console.error('[server] failed to initialize database', err);
+    process.exit(1);
+  }
+}
+
+startServer();

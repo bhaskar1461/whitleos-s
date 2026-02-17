@@ -30,6 +30,7 @@ GOOGLE_CALLBACK_URL=https://<your-render-domain>/auth/google/callback
 ZEPP_PHONE=...
 ZEPP_PASSWORD=...
 WEBHOOK_SECRET=...
+ADMIN_TOKEN=...
 API_PORT=4000
 ```
 
@@ -49,6 +50,7 @@ API_PORT=4000
 curl -s https://<your-render-domain>/api/auth/providers
 curl -I https://<your-render-domain>/auth/github
 curl -I https://<your-render-domain>/auth/google
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-render-domain>/api/admin/stats
 ```
 
 Expected:

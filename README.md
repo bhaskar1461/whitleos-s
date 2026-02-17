@@ -13,6 +13,7 @@ Full-stack fitness tracking app with React + Express, OAuth login, Google Fit sy
 - Google Fit import for steps/workouts
 - Health-data endpoints and progress summary
 - Optional direct Zepp sync (`ZEPP_PHONE`, `ZEPP_PASSWORD`)
+- Admin usage stats endpoint (`/api/admin/stats`)
 
 ## Quick Start
 
@@ -29,6 +30,7 @@ API_PORT=4000
 FRONTEND_URL=http://localhost:3000
 REACT_APP_BACKEND_ORIGIN=http://localhost:4000
 SESSION_SECRET=CHANGE_THIS_TO_A_LONG_RANDOM_SECRET
+ADMIN_TOKEN=CHANGE_THIS_TO_A_PRIVATE_ADMIN_TOKEN
 
 GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
@@ -60,6 +62,7 @@ App URLs:
 - `GET /api/health-data`
 - `POST /api/health-data`
 - `GET /api/health-data/summary`
+- `GET /api/admin/stats` (requires `x-admin-token` header)
 
 ## Scripts
 - `npm start`: React dev server
@@ -71,3 +74,23 @@ App URLs:
 - Build: `npm install && npm run build`
 - Start: `npm run server`
 - Set env vars from `.env.example`
+
+## Admin Stats
+- Set `ADMIN_TOKEN` in environment.
+- Call:
+```bash
+curl -H "x-admin-token: <ADMIN_TOKEN>" https://<your-domain>/api/admin/stats
+```
+- Returns:
+  - total users
+  - active users (24h / 7d / 30d)
+  - logins trend (last 14 days)
+  - data record totals
+
+## Render Free Performance Notes
+- Free web services cold start after idle, so first request can be slow.
+- This app now minimizes local-db disk reads and adds compression/caching headers.
+- For best speed:
+  - keep one service for this app only
+  - avoid very large payload syncs on first page load
+  - use periodic pings if you need lower cold-start impact
