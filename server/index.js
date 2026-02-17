@@ -8,7 +8,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { db } = require('./lowdb');
+const { db, hasKvCredentials } = require('./lowdb');
 const { nanoid } = require('nanoid');
 
 let compression = (_req, _res, next) => next();
@@ -69,6 +69,9 @@ if (!googleOauthConfigured) {
 }
 if (!hasRealCredential(ADMIN_TOKEN || '')) {
   console.warn('[server] Missing ADMIN_TOKEN. Admin stats endpoint will be disabled.');
+}
+if (isProduction && process.env.VERCEL && !hasKvCredentials) {
+  console.warn('[server] Missing KV_REST_API_URL or KV_REST_API_TOKEN. Data will not persist reliably on Vercel.');
 }
 
 let dbInitialized = false;
@@ -557,9 +560,13 @@ app.get(
   }
 );
 
-app.post('/logout', (req, res) => {
-  req.logout(() => {
-    req.session.destroy(() => res.status(204).end());
+app.post('/logout', (req, res, next) => {
+  req.logout((err) => {
+    if (err) return next(err);
+    if (req.session && typeof req.session.destroy === 'function') {
+      return req.session.destroy(() => res.status(204).end());
+    }
+    return res.status(204).end();
   });
 });
 
@@ -622,6 +629,48 @@ app.get('/api/admin/stats', ensureAdmin, async (_req, res) => {
       todayLogins: Number(loginsByDate[new Date().toISOString().slice(0, 10)] || 0),
       last14Days: buildLoginSeries(loginsByDate, 14),
     },
+  });
+});
+
+app.get('/api/admin/entries', ensureAdmin, async (req, res) => {
+  await ensureDbReady();
+
+  const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 200));
+  const type = String(req.query.type || 'all');
+  const allowedTypes = ['journal', 'meals', 'workouts', 'steps', 'healthData', 'users', 'connections', 'webhooks'];
+
+  const getItems = (name) => {
+    const list = Array.isArray(db.data[name]) ? db.data[name] : [];
+    return list.slice(0, limit);
+  };
+
+  if (type !== 'all') {
+    if (!allowedTypes.includes(type)) {
+      return res.status(400).json({
+        error: 'invalid_type',
+        message: `type must be one of: ${allowedTypes.join(', ')}`,
+      });
+    }
+    return res.json({
+      generatedAt: new Date().toISOString(),
+      type,
+      limit,
+      count: Array.isArray(db.data[type]) ? db.data[type].length : 0,
+      items: getItems(type),
+    });
+  }
+
+  return res.json({
+    generatedAt: new Date().toISOString(),
+    limit,
+    journal: getItems('journal'),
+    meals: getItems('meals'),
+    workouts: getItems('workouts'),
+    steps: getItems('steps'),
+    healthData: getItems('healthData'),
+    users: getItems('users'),
+    connections: getItems('connections'),
+    webhooks: getItems('webhooks'),
   });
 });
 
@@ -844,4 +893,8 @@ async function startServer() {
   }
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

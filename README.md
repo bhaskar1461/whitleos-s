@@ -13,6 +13,8 @@ Fitness tracking app with React frontend + Express backend, OAuth login, Google 
 - Google Fit import for steps/workouts
 - Health-data endpoints and progress summary
 - Admin usage stats endpoint (`/api/admin/stats`)
+- Admin entries endpoint (`/api/admin/entries`)
+- Admin UI page at `/admin`
 
 ## Quick Start
 
@@ -59,6 +61,7 @@ App URLs:
 - `POST /api/health-data`
 - `GET /api/health-data/summary`
 - `GET /api/admin/stats` (requires `x-admin-token` header)
+- `GET /api/admin/entries` (requires `x-admin-token` header)
 
 ## Scripts
 - `npm start`: React dev server
@@ -66,65 +69,54 @@ App URLs:
 - `npm run dev`: run frontend + backend together
 - `npm run build`: production build
 
-## Deploy (Free Split Setup)
+## Deploy (Vercel Full Stack)
 
-Use:
-- Backend: Render (Web Service, Docker)
-- Frontend: Vercel or Netlify (Static site)
+This repo can run both frontend and backend on one Vercel project.
 
-### 1) Backend on Render
-Deploy this repo as a Render Web Service.
+### 1) Vercel Project
+- Import repo to Vercel.
+- Framework preset: Create React App.
+- Keep default build command `npm run build`.
 
-Set backend environment variables:
+### 2) Required Vercel environment variables
 ```env
 SESSION_SECRET=<long-random-secret>
 ADMIN_TOKEN=<private-admin-token>
 
-FRONTEND_URL=https://<your-frontend-domain>
-FRONTEND_URLS=https://<your-frontend-domain>
+FRONTEND_URL=https://<your-vercel-domain>
+FRONTEND_URLS=https://<your-vercel-domain>
 
 GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
-GITHUB_CALLBACK_URL=https://<your-render-domain>/auth/github/callback
+GITHUB_CALLBACK_URL=https://<your-vercel-domain>/auth/github/callback
 
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-GOOGLE_CALLBACK_URL=https://<your-render-domain>/auth/google/callback
+GOOGLE_CALLBACK_URL=https://<your-vercel-domain>/auth/google/callback
 ```
 
-Backend health URL:
-- `https://<your-render-domain>/` -> `{ "status": "ok" }`
-
-### 2) Frontend on Vercel/Netlify
-Deploy the same repo as a static frontend.
-
-Set frontend environment variables:
+Optional but strongly recommended for persistent data on Vercel:
 ```env
-REACT_APP_API_BASE_URL=https://<your-render-domain>
-REACT_APP_BACKEND_ORIGIN=https://<your-render-domain>
+KV_REST_API_URL=...
+KV_REST_API_TOKEN=...
+KV_DATA_KEY=whitleos:db:v1
 ```
 
 ### 3) OAuth Console Values
-- GitHub callback URL: `https://<your-render-domain>/auth/github/callback`
-- Google redirect URI: `https://<your-render-domain>/auth/google/callback`
-- Google authorized JavaScript origin: `https://<your-frontend-domain>`
+- GitHub Homepage URL: `https://<your-vercel-domain>`
+- GitHub callback URL: `https://<your-vercel-domain>/auth/github/callback`
+- Google authorized JavaScript origin: `https://<your-vercel-domain>`
+- Google redirect URI: `https://<your-vercel-domain>/auth/google/callback`
 
-## Admin Stats
-- Set `ADMIN_TOKEN` in environment.
-- Call:
+### 4) Verification
 ```bash
-curl -H "x-admin-token: <ADMIN_TOKEN>" https://<your-domain>/api/admin/stats
+curl -s https://<your-vercel-domain>/api/auth/providers
+curl -I https://<your-vercel-domain>/auth/github
+curl -I https://<your-vercel-domain>/auth/google
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-vercel-domain>/api/admin/stats
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" "https://<your-vercel-domain>/api/admin/entries?limit=20"
 ```
-- Returns:
-  - total users
-  - active users (24h / 7d / 30d)
-  - logins trend (last 14 days)
-  - data record totals
 
-## Render Free Performance Notes
-- Free web services cold start after idle, so first request can be slow.
-- This app now minimizes local-db disk reads and adds compression/caching headers.
-- For best speed:
-  - keep one service for this app only
-  - avoid very large payload syncs on first page load
-  - use periodic pings if you need lower cold-start impact
+Open:
+- App: `https://<your-vercel-domain>/`
+- Admin console: `https://<your-vercel-domain>/admin`

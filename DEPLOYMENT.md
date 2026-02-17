@@ -1,27 +1,83 @@
-# Deployment Guide (Free Split Setup)
+# Deployment Guide
 
-Use two services:
-- Backend API on Render
-- Frontend SPA on Vercel or Netlify
+## Option A (Recommended): Vercel Full Stack
 
-This avoids Render building the React app and keeps OAuth/session flow cleaner.
+This repo is configured so one Vercel project can serve:
+- React frontend
+- Express backend routes (`/api/*`, `/auth/*`, `/logout`, `/webhook`, `/healthz`)
 
-## 1) Backend: Render
+The routing is defined in `vercel.json`.
 
-Create a Render **Web Service** from this repo.
+### 1) Create project
+- Import this repo in Vercel.
+- Framework preset: Create React App.
+- Build command: `npm run build`
 
-The Dockerfile now runs backend only:
-- installs Node dependencies
-- starts `server/index.js`
-
-Required backend environment variables:
+### 2) Configure environment variables
 
 ```env
 SESSION_SECRET=<long-random-secret>
 ADMIN_TOKEN=<private-admin-token>
 
-FRONTEND_URL=https://<your-frontend-domain>
-FRONTEND_URLS=https://<your-frontend-domain>
+FRONTEND_URL=https://<your-vercel-domain>
+FRONTEND_URLS=https://<your-vercel-domain>
+
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GITHUB_CALLBACK_URL=https://<your-vercel-domain>/auth/github/callback
+
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_CALLBACK_URL=https://<your-vercel-domain>/auth/google/callback
+```
+
+Optional (recommended for persistent data on Vercel):
+
+```env
+KV_REST_API_URL=...
+KV_REST_API_TOKEN=...
+KV_DATA_KEY=whitleos:db:v1
+```
+
+### 3) OAuth provider settings
+
+GitHub OAuth app:
+- Homepage URL: `https://<your-vercel-domain>`
+- Callback URL: `https://<your-vercel-domain>/auth/github/callback`
+
+Google OAuth client:
+- Authorized JavaScript origin: `https://<your-vercel-domain>`
+- Redirect URI: `https://<your-vercel-domain>/auth/google/callback`
+
+### 4) Verify
+
+```bash
+curl -s https://<your-vercel-domain>/api/auth/providers
+curl -I https://<your-vercel-domain>/auth/github
+curl -I https://<your-vercel-domain>/auth/google
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-vercel-domain>/api/admin/stats
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" "https://<your-vercel-domain>/api/admin/entries?limit=20"
+```
+
+## Option B: Vercel Frontend + Render Backend
+
+Still supported if you prefer keeping backend on Render.
+
+Frontend env (Vercel):
+
+```env
+REACT_APP_API_BASE_URL=https://<your-render-domain>
+REACT_APP_BACKEND_ORIGIN=https://<your-render-domain>
+```
+
+Backend env (Render):
+
+```env
+SESSION_SECRET=<long-random-secret>
+ADMIN_TOKEN=<private-admin-token>
+
+FRONTEND_URL=https://<your-vercel-domain>
+FRONTEND_URLS=https://<your-vercel-domain>
 
 GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
@@ -30,58 +86,4 @@ GITHUB_CALLBACK_URL=https://<your-render-domain>/auth/github/callback
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_CALLBACK_URL=https://<your-render-domain>/auth/google/callback
-```
-
-Optional:
-
-```env
-WEBHOOK_SECRET=...
-API_PORT=4000
-```
-
-## 2) Frontend: Vercel or Netlify
-
-Deploy the same repo as static React.
-
-Frontend environment variables:
-
-```env
-REACT_APP_API_BASE_URL=https://<your-render-domain>
-REACT_APP_BACKEND_ORIGIN=https://<your-render-domain>
-```
-
-Notes:
-- `REACT_APP_API_BASE_URL` is used for all `/api/*` and `/logout` calls.
-- `REACT_APP_BACKEND_ORIGIN` is used for OAuth start URLs (`/auth/github`, `/auth/google`).
-
-## 3) OAuth Provider Settings
-
-### GitHub OAuth App
-- Homepage URL: `https://<your-frontend-domain>`
-- Authorization callback URL: `https://<your-render-domain>/auth/github/callback`
-
-### Google OAuth Client (Web)
-- Authorized JavaScript origin: `https://<your-frontend-domain>`
-- Authorized redirect URI: `https://<your-render-domain>/auth/google/callback`
-
-## 4) Verification Checklist
-
-Backend checks:
-
-```bash
-curl -s https://<your-render-domain>/
-curl -s https://<your-render-domain>/api/auth/providers
-curl -I https://<your-render-domain>/auth/github
-curl -I https://<your-render-domain>/auth/google
-```
-
-Expected:
-- `/` returns `{"status":"ok"}`
-- `/api/auth/providers` returns configured provider JSON
-- OAuth URLs return redirects, not `404`
-
-Admin stats:
-
-```bash
-curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-render-domain>/api/admin/stats
 ```

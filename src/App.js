@@ -8,6 +8,7 @@ import Journal from './pages/Journal';
 import Progress from './pages/Progress';
 import Auth from './pages/Auth';
 import Contact from './pages/Contact';
+import Admin from './pages/Admin';
 
 
 
@@ -25,6 +26,7 @@ function App() {
           <Link to="/progress" className="hover:underline">Progress</Link>
           <Link to="/contact" className="hover:underline">Contact</Link>
           <Link to="/auth" className="hover:underline">Login</Link>
+          <Link to="/admin" className="hover:underline">Admin</Link>
         </div>
       </nav>
       <Routes>
@@ -36,6 +38,7 @@ function App() {
         <Route path="/progress" element={<Progress />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </Router>
   );

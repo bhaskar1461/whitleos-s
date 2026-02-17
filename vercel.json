@@ -1,5 +1,26 @@
 {
+  "functions": {
+    "api/[...path].js": {
+      "maxDuration": 10
+    }
+  },
   "routes": [
+    {
+      "src": "/auth/(.*)",
+      "dest": "/api/auth/$1"
+    },
+    {
+      "src": "/logout",
+      "dest": "/api/logout"
+    },
+    {
+      "src": "/webhook",
+      "dest": "/api/webhook"
+    },
+    {
+      "src": "/healthz",
+      "dest": "/api/healthz"
+    },
     {
       "handle": "filesystem"
     },
