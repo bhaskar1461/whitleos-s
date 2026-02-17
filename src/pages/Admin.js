@@ -31,6 +31,15 @@ function Admin() {
     return { 'x-admin-token': token.trim() };
   }, [token]);
 
+  const parseJsonSafely = async (response) => {
+    const text = await response.text();
+    try {
+      return { json: JSON.parse(text), text };
+    } catch (_err) {
+      return { json: null, text };
+    }
+  };
+
   const loadAdminData = async () => {
     if (!token.trim()) {
       setError('Enter admin token first.');
@@ -53,15 +62,31 @@ function Admin() {
         return;
       }
       if (!statsRes.ok || !entriesRes.ok) {
-        const message = `Failed to load admin data (${statsRes.status}/${entriesRes.status}).`;
+        const statsBody = await parseJsonSafely(statsRes);
+        const entriesBody = await parseJsonSafely(entriesRes);
+        const message = [
+          `Failed to load admin data (${statsRes.status}/${entriesRes.status}).`,
+          statsBody.json?.message || statsBody.json?.error || statsBody.text?.slice(0, 160) || '',
+          entriesBody.json?.message || entriesBody.json?.error || entriesBody.text?.slice(0, 160) || '',
+        ]
+          .filter(Boolean)
+          .join(' ');
         setError(message);
         setStats(null);
         setEntries(null);
         return;
       }
 
-      const statsData = await statsRes.json();
-      const entriesData = await entriesRes.json();
+      const statsBody = await parseJsonSafely(statsRes);
+      const entriesBody = await parseJsonSafely(entriesRes);
+      if (!statsBody.json || !entriesBody.json) {
+        setError('Admin API returned non-JSON response. Check Vercel routing for /api/*.');
+        setStats(null);
+        setEntries(null);
+        return;
+      }
+      const statsData = statsBody.json;
+      const entriesData = entriesBody.json;
       setStats(statsData);
       setEntries(entriesData);
     } catch (_err) {
