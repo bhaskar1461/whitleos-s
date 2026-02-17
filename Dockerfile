@@ -1,10 +1,21 @@
-FROM python:3.12-slim
+FROM node:20-alpine AS build
 
-WORKDIR /app/app
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
 
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY . .
+RUN npm run build
 
-COPY ./app /app/app
+FROM node:20-alpine AS runtime
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=build /app/build ./build
+COPY --from=build /app/server ./server
+
+CMD ["node", "server/index.js"]
