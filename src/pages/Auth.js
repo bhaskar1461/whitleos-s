@@ -40,10 +40,6 @@ function Auth() {
     window.location.href = `${backendOrigin}/auth/google`;
   };
 
-  const handleAppleInfo = () => {
-    setMessage('Apple Health sync requires an iOS HealthKit bridge app. Web login alone cannot fetch Apple Health data.');
-  };
-
   const handleLogout = async () => {
     await fetch('/logout', { method: 'POST', credentials: 'include' });
     setUser(null);
@@ -86,14 +82,8 @@ function Auth() {
           >
             Continue with GitHub
           </button>
-          <button onClick={handleAppleInfo} className="w-full bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300">
-            Continue with Apple ID
-          </button>
         </div>
         {message ? <div className="text-xs text-amber-700 mt-4">{message}</div> : null}
-        <div className="text-xs text-gray-500 mt-4">
-          Zepp data can be synced by connecting Zepp app to Google Fit, then syncing here.
-        </div>
       </div>
     </div>
   );

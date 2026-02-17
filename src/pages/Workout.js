@@ -8,7 +8,6 @@ function Workout() {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [providers, setProviders] = useState(null);
   const [syncing, setSyncing] = useState(false);
-  const [syncingZepp, setSyncingZepp] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
   const fetchWorkouts = async () => {
@@ -82,28 +81,6 @@ function Workout() {
     }
   };
 
-  const handleZeppSync = async () => {
-    try {
-      setSyncingZepp(true);
-      setSyncMessage('');
-      const res = await fetch('/api/sync/zepp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setSyncMessage(data.message || 'Zepp sync failed.');
-        return;
-      }
-      setSyncMessage(`Zepp sync completed. ${data.stepsSynced} step records were updated.`);
-    } catch (_err) {
-      setSyncMessage('Zepp sync failed. Please try again.');
-    } finally {
-      setSyncingZepp(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#121214] text-gray-200 px-4 py-8">
       <div className="max-w-5xl mx-auto">
@@ -130,17 +107,8 @@ function Workout() {
               Login with <Link to="/auth" className="text-blue-300 underline">Google</Link> to enable sync.
             </div>
           )}
-          {providers?.zepp?.connected ? (
-            <button
-              onClick={handleZeppSync}
-              disabled={syncingZepp}
-              className="ml-0 mt-3 bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 disabled:opacity-60"
-            >
-              {syncingZepp ? 'Syncing Zepp...' : 'Sync from Zepp'}
-            </button>
-          ) : null}
           <div className="text-xs text-gray-400 mt-3">
-            Apple Health needs iOS HealthKit bridge app. Zepp direct sync appears when server ZEPP credentials are configured.
+            Google Fit sync is available after signing in with Google.
           </div>
           {syncMessage ? <div className="text-sm mt-3 text-gray-200">{syncMessage}</div> : null}
         </div>

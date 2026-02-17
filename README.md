@@ -1,6 +1,6 @@
 # Fitness & Journal Tracker
 
-Full-stack fitness tracking app with React + Express, OAuth login, Google Fit sync, and merged health-data flow (including optional direct Zepp sync).
+Full-stack fitness tracking app with React + Express, OAuth login, Google Fit sync, and merged health-data flow.
 
 ## Stack
 - React 18 (Create React App)
@@ -12,7 +12,6 @@ Full-stack fitness tracking app with React + Express, OAuth login, Google Fit sy
 - Meal, workout, step, and journal tracking
 - Google Fit import for steps/workouts
 - Health-data endpoints and progress summary
-- Optional direct Zepp sync (`ZEPP_PHONE`, `ZEPP_PASSWORD`)
 - Admin usage stats endpoint (`/api/admin/stats`)
 
 ## Quick Start
@@ -39,10 +38,6 @@ GITHUB_CALLBACK_URL=http://localhost:4000/auth/github/callback
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_CALLBACK_URL=http://localhost:4000/auth/google/callback
-
-# Optional Zepp direct sync
-ZEPP_PHONE=...
-ZEPP_PASSWORD=...
 ```
 
 ### 3. Run
@@ -58,7 +53,6 @@ App URLs:
 - `GET /api/auth/providers`
 - `GET /api/health/providers`
 - `POST /api/sync/google-fit`
-- `POST /api/sync/zepp` (requires Zepp env vars)
 - `GET /api/health-data`
 - `POST /api/health-data`
 - `GET /api/health-data/summary`
