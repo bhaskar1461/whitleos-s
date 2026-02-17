@@ -7,7 +7,7 @@ function Journal() {
   const [entries, setEntries] = useState([]);
 
   const fetchEntries = async () => {
-    const res = await fetch('http://localhost:4000/api/journal', { credentials: 'include' });
+    const res = await fetch('/api/journal', { credentials: 'include' });
     if (res.status === 401) return setEntries([]);
     const data = await res.json();
     setEntries(data);
@@ -18,7 +18,7 @@ function Journal() {
   const handleAddEntry = async (e) => {
     e.preventDefault();
     if (!title || !content || !date) return;
-    await fetch('http://localhost:4000/api/journal', {
+    await fetch('/api/journal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -30,7 +30,7 @@ function Journal() {
   };
 
   const handleDelete = async (id) => {
-    await fetch(`http://localhost:4000/api/journal/${id}`, { method: 'DELETE', credentials: 'include' });
+    await fetch(`/api/journal/${id}`, { method: 'DELETE', credentials: 'include' });
     fetchEntries();
   };
 

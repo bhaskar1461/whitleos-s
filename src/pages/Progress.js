@@ -32,10 +32,10 @@ function Progress() {
   useEffect(() => {
     const fetchAll = async () => {
       const [m, w, s, j] = await Promise.all([
-        fetch('http://localhost:4000/api/meals', { credentials: 'include' }),
-        fetch('http://localhost:4000/api/workouts', { credentials: 'include' }),
-        fetch('http://localhost:4000/api/steps', { credentials: 'include' }),
-        fetch('http://localhost:4000/api/journal', { credentials: 'include' }),
+        fetch('/api/meals', { credentials: 'include' }),
+        fetch('/api/workouts', { credentials: 'include' }),
+        fetch('/api/steps', { credentials: 'include' }),
+        fetch('/api/journal', { credentials: 'include' }),
       ]);
       setMeals(m.status === 200 ? await m.json() : []);
       setWorkouts(w.status === 200 ? await w.json() : []);
