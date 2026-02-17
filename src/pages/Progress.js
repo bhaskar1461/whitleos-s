@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../lib/api';
 
 function getBestStreak(steps) {
   let best = 0, curr = 0, prevDate = null;
@@ -33,11 +34,11 @@ function Progress() {
   useEffect(() => {
     const fetchAll = async () => {
       const [m, w, s, j, h] = await Promise.all([
-        fetch('/api/meals', { credentials: 'include' }),
-        fetch('/api/workouts', { credentials: 'include' }),
-        fetch('/api/steps', { credentials: 'include' }),
-        fetch('/api/journal', { credentials: 'include' }),
-        fetch('/api/health-data/summary', { credentials: 'include' }),
+        apiFetch('/api/meals'),
+        apiFetch('/api/workouts'),
+        apiFetch('/api/steps'),
+        apiFetch('/api/journal'),
+        apiFetch('/api/health-data/summary'),
       ]);
       setMeals(m.status === 200 ? await m.json() : []);
       setWorkouts(w.status === 200 ? await w.json() : []);

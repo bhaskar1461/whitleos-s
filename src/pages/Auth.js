@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch, buildBackendUrl } from '../lib/api';
 
 function Auth() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState('');
   const [providerConfig, setProviderConfig] = useState(null);
-  const backendOrigin = process.env.REACT_APP_BACKEND_ORIGIN || `${window.location.protocol}//${window.location.hostname}:4000`;
 
   const fetchUser = async () => {
     try {
-      const res = await fetch('/api/user', { credentials: 'include' });
+      const res = await apiFetch('/api/user');
       const data = await res.json();
       setUser(data.user);
     } catch (_e) {
@@ -18,7 +18,7 @@ function Auth() {
 
   useEffect(() => {
     fetchUser();
-    fetch('/api/auth/providers')
+    apiFetch('/api/auth/providers')
       .then((res) => res.json())
       .then((data) => setProviderConfig(data))
       .catch(() => setProviderConfig(null));
@@ -29,7 +29,7 @@ function Auth() {
       setMessage('GitHub login is not configured yet. Add GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in .env.');
       return;
     }
-    window.location.href = `${backendOrigin}/auth/github`;
+    window.location.href = buildBackendUrl('/auth/github');
   };
 
   const handleGoogleLogin = () => {
@@ -37,11 +37,11 @@ function Auth() {
       setMessage('Google login is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.');
       return;
     }
-    window.location.href = `${backendOrigin}/auth/google`;
+    window.location.href = buildBackendUrl('/auth/google');
   };
 
   const handleLogout = async () => {
-    await fetch('/logout', { method: 'POST', credentials: 'include' });
+    await apiFetch('/logout', { method: 'POST' });
     setUser(null);
   };
 

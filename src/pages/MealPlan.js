@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { DISH_CATEGORIES, INDIAN_DISHES } from '../data/indianDishes';
+import { apiFetch } from '../lib/api';
 
 function MealPlan() {
   const [meals, setMeals] = useState([]);
@@ -42,7 +43,7 @@ function MealPlan() {
     try {
       setLoading(true);
       setError('');
-      const res = await fetch('/api/meals', { credentials: 'include' });
+      const res = await apiFetch('/api/meals');
       if (res.status === 401) {
         setIsUnauthorized(true);
         setMeals([]);
@@ -75,10 +76,9 @@ function MealPlan() {
     try {
       setSavingDishId(dish.id);
       setError('');
-      const res = await fetch('/api/meals', {
+      const res = await apiFetch('/api/meals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           name: dish.name,
           category: dish.category,
@@ -103,9 +103,8 @@ function MealPlan() {
     try {
       setDeletingMealId(mealId);
       setError('');
-      const res = await fetch(`/api/meals/${mealId}`, {
+      const res = await apiFetch(`/api/meals/${mealId}`, {
         method: 'DELETE',
-        credentials: 'include',
       });
       if (!res.ok) throw new Error('Unable to delete meal entry');
       await fetchMeals();
@@ -130,10 +129,9 @@ function MealPlan() {
     }
     try {
       setError('');
-      const res = await fetch('/api/meals', {
+      const res = await apiFetch('/api/meals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           name: trimmedName,
           category: 'Custom',

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 function Workout() {
   const [workouts, setWorkouts] = useState([]);
@@ -11,14 +12,14 @@ function Workout() {
   const [syncMessage, setSyncMessage] = useState('');
 
   const fetchWorkouts = async () => {
-    const res = await fetch('/api/workouts', { credentials: 'include' });
+    const res = await apiFetch('/api/workouts');
     if (res.status === 401) return setWorkouts([]);
     const data = await res.json();
     setWorkouts(data);
   };
 
   const fetchProviders = async () => {
-    const res = await fetch('/api/health/providers', { credentials: 'include' });
+    const res = await apiFetch('/api/health/providers');
     if (!res.ok) return setProviders(null);
     const data = await res.json();
     setProviders(data);
@@ -36,10 +37,9 @@ function Workout() {
   const handleAddWorkout = async (e) => {
     e.preventDefault();
     if (!exercise || !duration || !date) return;
-    await fetch('/api/workouts', {
+    await apiFetch('/api/workouts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({
         exercise,
         duration: Number(duration),
@@ -53,7 +53,7 @@ function Workout() {
   };
 
   const handleDeleteWorkout = async (id) => {
-    await fetch(`/api/workouts/${id}`, { method: 'DELETE', credentials: 'include' });
+    await apiFetch(`/api/workouts/${id}`, { method: 'DELETE' });
     fetchWorkouts();
   };
 
@@ -61,10 +61,9 @@ function Workout() {
     try {
       setSyncing(true);
       setSyncMessage('');
-      const res = await fetch('/api/sync/google-fit', {
+      const res = await apiFetch('/api/sync/google-fit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ days: 30 }),
       });
       const data = await res.json();

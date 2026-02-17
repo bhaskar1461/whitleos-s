@@ -21,6 +21,7 @@ try {
 const PORT = process.env.API_PORT || process.env.PORT || 4000;
 const {
   FRONTEND_URL = 'http://localhost:3000',
+  FRONTEND_URLS = '',
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
   GITHUB_CALLBACK_URL = 'http://localhost:4000/auth/github/callback',
@@ -31,6 +32,22 @@ const {
   SESSION_SECRET = 'dev_secret_change_me',
   WEBHOOK_SECRET,
 } = process.env;
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+function normalizeOrigin(origin) {
+  if (!origin) return '';
+  return String(origin).trim().replace(/\/+$/, '');
+}
+
+const allowedOrigins = Array.from(
+  new Set(
+    [FRONTEND_URL, ...String(FRONTEND_URLS).split(',')]
+      .map((value) => normalizeOrigin(value))
+      .filter(Boolean)
+  )
+);
+const redirectFrontendUrl = allowedOrigins[0] || normalizeOrigin(FRONTEND_URL) || 'http://localhost:3000';
 
 function hasRealCredential(value) {
   if (!value) return false;
@@ -439,6 +456,23 @@ async function fetchGoogleFitWorkouts(accessToken, days) {
 }
 
 const app = express();
+app.set('trust proxy', 1);
+
+app.use((req, res, next) => {
+  const requestOrigin = normalizeOrigin(req.get('origin'));
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', requestOrigin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Token');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  }
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  return next();
+});
+
 // Capture raw body for webhook signature verification
 app.use(
   express.json({
@@ -453,7 +487,13 @@ app.use(
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: { httpOnly: true },
+    proxy: isProduction,
+    cookie: {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
   })
 );
 app.use(passport.initialize());
@@ -480,13 +520,13 @@ app.get(
   '/auth/github/callback',
   (req, res, next) => {
     if (!githubOauthConfigured) {
-      return res.redirect(`${FRONTEND_URL}/auth?error=github_oauth_not_configured`);
+      return res.redirect(`${redirectFrontendUrl}/auth?error=github_oauth_not_configured`);
     }
     return next();
   },
-  passport.authenticate('github', { failureRedirect: `${FRONTEND_URL}/auth?error=github_auth_failed` }),
+  passport.authenticate('github', { failureRedirect: `${redirectFrontendUrl}/auth?error=github_auth_failed` }),
   (req, res) => {
-    res.redirect(FRONTEND_URL);
+    res.redirect(redirectFrontendUrl);
   }
 );
 
@@ -507,13 +547,13 @@ app.get(
   '/auth/google/callback',
   (req, res, next) => {
     if (!googleOauthConfigured) {
-      return res.redirect(`${FRONTEND_URL}/auth?error=google_oauth_not_configured`);
+      return res.redirect(`${redirectFrontendUrl}/auth?error=google_oauth_not_configured`);
     }
     return next();
   },
-  passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/auth?error=google_auth_failed` }),
+  passport.authenticate('google', { failureRedirect: `${redirectFrontendUrl}/auth?error=google_auth_failed` }),
   (req, res) => {
-    res.redirect(`${FRONTEND_URL}/steps`);
+    res.redirect(`${redirectFrontendUrl}/steps`);
   }
 );
 
@@ -768,6 +808,7 @@ function collectionRoutes(name) {
 
 ['journal', 'steps', 'meals', 'workouts'].forEach(collectionRoutes);
 
+app.get('/', (_req, res) => res.json({ status: 'ok' }));
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
 // Serve production build if present

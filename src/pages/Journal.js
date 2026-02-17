@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 
 function Journal() {
   const [title, setTitle] = useState('');
@@ -7,7 +8,7 @@ function Journal() {
   const [entries, setEntries] = useState([]);
 
   const fetchEntries = async () => {
-    const res = await fetch('/api/journal', { credentials: 'include' });
+    const res = await apiFetch('/api/journal');
     if (res.status === 401) return setEntries([]);
     const data = await res.json();
     setEntries(data);
@@ -18,10 +19,9 @@ function Journal() {
   const handleAddEntry = async (e) => {
     e.preventDefault();
     if (!title || !content || !date) return;
-    await fetch('/api/journal', {
+    await apiFetch('/api/journal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ title, content, date, created: new Date() }),
     });
     setTitle('');
@@ -30,7 +30,7 @@ function Journal() {
   };
 
   const handleDelete = async (id) => {
-    await fetch(`/api/journal/${id}`, { method: 'DELETE', credentials: 'include' });
+    await apiFetch(`/api/journal/${id}`, { method: 'DELETE' });
     fetchEntries();
   };
 

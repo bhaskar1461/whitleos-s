@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { apiFetch } from '../lib/api';
 
 function getStreak(steps) {
   let streak = 0;
@@ -29,14 +30,14 @@ function Steps() {
   const [syncMessage, setSyncMessage] = useState('');
 
   const fetchProviders = async () => {
-    const res = await fetch('/api/health/providers', { credentials: 'include' });
+    const res = await apiFetch('/api/health/providers');
     if (!res.ok) return setProviders(null);
     const data = await res.json();
     setProviders(data);
   };
 
   const fetchSteps = async () => {
-    const res = await fetch('/api/steps', { credentials: 'include' });
+    const res = await apiFetch('/api/steps');
     if (res.status === 401) return setSteps([]);
     const data = await res.json();
     setSteps(data);
@@ -50,10 +51,9 @@ function Steps() {
   const handleAddSteps = async (e) => {
     e.preventDefault();
     if (!count || !date) return;
-    await fetch('/api/steps', {
+    await apiFetch('/api/steps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
       body: JSON.stringify({ count: Number(count), date, created: new Date().toISOString() }),
     });
     setCount('');
@@ -61,7 +61,7 @@ function Steps() {
   };
 
   const handleDelete = async (id) => {
-    await fetch(`/api/steps/${id}`, { method: 'DELETE', credentials: 'include' });
+    await apiFetch(`/api/steps/${id}`, { method: 'DELETE' });
     fetchSteps();
   };
 
@@ -69,10 +69,9 @@ function Steps() {
     try {
       setSyncing(true);
       setSyncMessage('');
-      const res = await fetch('/api/sync/google-fit', {
+      const res = await apiFetch('/api/sync/google-fit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ days: 30 }),
       });
       const data = await res.json();
