@@ -28,19 +28,22 @@ function Progress() {
   const [workouts, setWorkouts] = useState([]);
   const [steps, setSteps] = useState([]);
   const [journals, setJournals] = useState([]);
+  const [healthSummary, setHealthSummary] = useState({ latest: null, count: 0 });
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [m, w, s, j] = await Promise.all([
+      const [m, w, s, j, h] = await Promise.all([
         fetch('/api/meals', { credentials: 'include' }),
         fetch('/api/workouts', { credentials: 'include' }),
         fetch('/api/steps', { credentials: 'include' }),
         fetch('/api/journal', { credentials: 'include' }),
+        fetch('/api/health-data/summary', { credentials: 'include' }),
       ]);
       setMeals(m.status === 200 ? await m.json() : []);
       setWorkouts(w.status === 200 ? await w.json() : []);
       setSteps(s.status === 200 ? await s.json() : []);
       setJournals(j.status === 200 ? await j.json() : []);
+      setHealthSummary(h.status === 200 ? await h.json() : { latest: null, count: 0 });
     };
     fetchAll();
   }, []);
@@ -50,6 +53,9 @@ function Progress() {
   const totalSteps = steps.reduce((sum, s) => sum + (s.count || 0), 0);
   const bestStreak = getBestStreak(steps);
   const journalCount = journals.length;
+  const latestHealth = healthSummary?.latest || null;
+  const latestHealthCalories = Number(latestHealth?.caloriesBurned || 0);
+  const healthRecordCount = Number(healthSummary?.count || 0);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
@@ -75,6 +81,14 @@ function Progress() {
           <h3 className="text-xl font-semibold mb-2">Journal</h3>
           <div className="text-2xl font-bold">{journalCount}</div>
           <div className="text-gray-500">Entries Written</div>
+        </div>
+        <div className="bg-white rounded shadow p-6">
+          <h3 className="text-xl font-semibold mb-2">Health Data</h3>
+          <div className="text-2xl font-bold">{latestHealthCalories} cal</div>
+          <div className="text-gray-500">Latest Calories Burned</div>
+          <div className="mt-2 text-sm text-gray-600">
+            Records: {healthRecordCount} {latestHealth?.source ? `(${latestHealth.source})` : ''}
+          </div>
         </div>
       </div>
     </div>

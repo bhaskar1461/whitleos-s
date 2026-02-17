@@ -20,6 +20,8 @@ const {
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL = 'http://localhost:4000/auth/google/callback',
+  ZEPP_PHONE,
+  ZEPP_PASSWORD,
   SESSION_SECRET = 'dev_secret_change_me',
   WEBHOOK_SECRET,
 } = process.env;
@@ -35,12 +37,16 @@ function hasRealCredential(value) {
 
 const githubOauthConfigured = hasRealCredential(GITHUB_CLIENT_ID) && hasRealCredential(GITHUB_CLIENT_SECRET);
 const googleOauthConfigured = hasRealCredential(GOOGLE_CLIENT_ID) && hasRealCredential(GOOGLE_CLIENT_SECRET);
+const zeppConfigured = hasRealCredential(ZEPP_PHONE) && hasRealCredential(ZEPP_PASSWORD);
 
 if (!githubOauthConfigured) {
   console.warn('[server] Missing GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET. Set them in environment variables.');
 }
 if (!googleOauthConfigured) {
   console.warn('[server] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET. Google Fit sync will be unavailable.');
+}
+if (!zeppConfigured) {
+  console.warn('[server] Missing ZEPP_PHONE or ZEPP_PASSWORD. Zepp direct sync will be unavailable.');
 }
 
 passport.serializeUser((user, done) => done(null, user));
@@ -139,6 +145,43 @@ function getDateOnly(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toISOString().slice(0, 10);
+}
+
+function getNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeHealthDataPayload(payload = {}) {
+  return {
+    caloriesBurned: getNumber(payload.caloriesBurned ?? payload.calories_burned, 0),
+    exerciseMinutes: getNumber(payload.exerciseMinutes ?? payload.exercise_minutes, 0),
+    standHours: getNumber(payload.standHours ?? payload.stand_hours, 0),
+    restingHeartRate:
+      payload.restingHeartRate ?? payload.resting_heart_rate ?? null,
+    respiratoryRate:
+      payload.respiratoryRate ?? payload.respiratory_rate ?? null,
+    sleepDuration: payload.sleepDuration ?? payload.sleep_duration ?? null,
+    sleepQuality: payload.sleepQuality ?? payload.sleep_quality ?? null,
+    sleepStages: payload.sleepStages ?? payload.sleep_stages ?? null,
+    source: payload.source || 'manual',
+    date: payload.date || getDateOnly(Date.now()),
+  };
+}
+
+function withLegacyHealthAliases(item) {
+  if (!item) return item;
+  return {
+    ...item,
+    calories_burned: item.caloriesBurned ?? 0,
+    exercise_minutes: item.exerciseMinutes ?? 0,
+    stand_hours: item.standHours ?? 0,
+    resting_heart_rate: item.restingHeartRate ?? null,
+    respiratory_rate: item.respiratoryRate ?? null,
+    sleep_duration: item.sleepDuration ?? null,
+    sleep_quality: item.sleepQuality ?? null,
+    sleep_stages: item.sleepStages ?? null,
+  };
 }
 
 async function getGoogleConnectionForUser(user) {
@@ -252,6 +295,139 @@ async function fetchGoogleFitWorkouts(accessToken, days) {
     .filter(Boolean);
 }
 
+function parseZeppSummary(summary) {
+  if (!summary) return {};
+  if (typeof summary === 'object') return summary;
+  if (typeof summary !== 'string') return {};
+
+  try {
+    return JSON.parse(summary);
+  } catch (_err) {
+    return {};
+  }
+}
+
+function parseZeppAccessCode(location) {
+  if (!location) return null;
+
+  try {
+    const parsedUrl = new URL(location);
+    return parsedUrl.searchParams.get('access');
+  } catch (_err) {
+    const match = /access=([^&]+)/.exec(location);
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+}
+
+async function fetchZeppLatestData(phone, password) {
+  const webHeaders = {
+    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+    'User-Agent':
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2',
+  };
+
+  const tokenBody = new URLSearchParams({
+    client_id: 'HuaMi',
+    password: String(password),
+    redirect_uri: 'https://s3-us-west-2.amazonaws.com/hm-registration/successsignin.html',
+    token: 'access',
+  });
+  const tokenResponse = await fetch(`https://api-user.huami.com/registrations/+86${phone}/tokens`, {
+    method: 'POST',
+    headers: webHeaders,
+    body: tokenBody,
+    redirect: 'manual',
+  });
+  if (tokenResponse.status !== 302) {
+    throw new Error(`Zepp auth failed (step 1, status ${tokenResponse.status})`);
+  }
+
+  const location = tokenResponse.headers.get('location');
+  const accessCode = parseZeppAccessCode(location);
+  if (!accessCode) {
+    throw new Error('Zepp auth failed: missing access code.');
+  }
+
+  const loginBody = new URLSearchParams({
+    app_name: 'com.xiaomi.hm.health',
+    app_version: '4.6.0',
+    code: accessCode,
+    country_code: 'CN',
+    device_id: '2C8B4939-0CCD-4E94-8CBA-CB8EA6E613A1',
+    device_model: 'phone',
+    grant_type: 'access_token',
+    third_name: 'huami_phone',
+  });
+  const loginResponse = await fetch('https://account.huami.com/v2/client/login', {
+    method: 'POST',
+    headers: webHeaders,
+    body: loginBody,
+  });
+  const loginJson = await loginResponse.json();
+  const loginToken = loginJson?.token_info?.login_token;
+  const userId = loginJson?.token_info?.user_id;
+  if (!loginToken || !userId) {
+    throw new Error('Zepp auth failed: missing login token or user id.');
+  }
+
+  const appTokenUrl = new URL('https://account-cn.huami.com/v1/client/app_tokens');
+  appTokenUrl.searchParams.set('app_name', 'com.xiaomi.hm.health');
+  appTokenUrl.searchParams.set('dn', 'api-user.huami.com,api-mifit.huami.com,app-analytics.huami.com');
+  appTokenUrl.searchParams.set('login_token', loginToken);
+  appTokenUrl.searchParams.set('os_version', '4.1.0');
+  const appTokenResponse = await fetch(appTokenUrl.toString(), {
+    headers: {
+      'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 9; MI 6 MIUI/20.6.18)',
+    },
+  });
+  const appTokenJson = await appTokenResponse.json();
+  const appToken = appTokenJson?.token_info?.app_token;
+  if (!appToken) {
+    throw new Error('Zepp auth failed: missing app token.');
+  }
+
+  const timestampResponse = await fetch('http://api.m.taobao.com/rest/api3.do?api=mtop.common.getTimestamp', {
+    headers: {
+      'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 9; MI 6 MIUI/20.6.18)',
+    },
+  });
+  const timestampJson = await timestampResponse.json();
+  const timestamp = timestampJson?.data?.t;
+
+  const bandDataUrl = `https://api-mifit-cn.huami.com/v1/data/band_data.json?&t=${encodeURIComponent(
+    timestamp || Date.now()
+  )}`;
+  const bandBody = new URLSearchParams({
+    userid: String(userId),
+    last_sync_data_time: '0',
+    device_type: '0',
+    last_deviceid: 'DA932FFFFE8816E7',
+    data_len: '1',
+  });
+  const bandDataResponse = await fetch(bandDataUrl, {
+    method: 'POST',
+    headers: {
+      apptoken: appToken,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: bandBody,
+  });
+  const bandDataJson = await bandDataResponse.json();
+  const latestEntry = Array.isArray(bandDataJson?.data) ? bandDataJson.data[0] : null;
+  if (!latestEntry) {
+    throw new Error('No Zepp data available.');
+  }
+
+  const summary = parseZeppSummary(latestEntry.summary);
+  const stepSummary = summary?.stp || {};
+
+  return {
+    caloriesBurned: Number(stepSummary.cal || 0),
+    stepCount: Number(stepSummary.ttl || 0),
+    raw: latestEntry,
+  };
+}
+
 const app = express();
 // Capture raw body for webhook signature verification
 app.use(
@@ -278,7 +454,7 @@ app.get('/api/auth/providers', (_req, res) => {
     github: { configured: githubOauthConfigured, loginUrl: '/auth/github' },
     google: { configured: googleOauthConfigured, loginUrl: '/auth/google' },
     apple: { configured: false, loginUrl: '/auth/apple' },
-    zepp: { configured: false, loginUrl: '/auth/zepp' },
+    zepp: { configured: zeppConfigured, loginUrl: '/auth/zepp' },
   });
 });
 
@@ -340,9 +516,17 @@ app.get('/auth/apple', (_req, res) => {
 });
 
 app.get('/auth/zepp', (_req, res) => {
-  res.status(501).json({
-    error: 'zepp_direct_api_not_available',
-    message: 'Direct Zepp cloud sync is unavailable here. Sync Zepp app to Google Fit or Apple Health, then use sync.',
+  if (!zeppConfigured) {
+    return res.status(503).json({
+      error: 'zepp_not_configured',
+      message: 'Set ZEPP_PHONE and ZEPP_PASSWORD environment variables to enable direct Zepp sync.',
+    });
+  }
+
+  return res.json({
+    configured: true,
+    syncUrl: '/api/sync/zepp',
+    message: 'Zepp credentials are configured. Use POST /api/sync/zepp while signed in.',
   });
 });
 
@@ -369,9 +553,12 @@ app.get('/api/health/providers', ensureAuth, async (req, res) => {
       note: 'Requires iOS app + HealthKit bridge',
     },
     zepp: {
-      connected: false,
+      connected: zeppConfigured,
       loginUrl: '/auth/zepp',
-      note: 'Sync Zepp with Google Fit or Apple Health first',
+      syncUrl: '/api/sync/zepp',
+      note: zeppConfigured
+        ? 'Direct Zepp sync is available.'
+        : 'Set ZEPP_PHONE and ZEPP_PASSWORD to enable direct Zepp sync.',
     },
   });
 });
@@ -445,6 +632,124 @@ app.post('/api/sync/google-fit', ensureAuth, async (req, res) => {
         : 'Failed to sync Google Fit data right now.',
     });
   }
+});
+
+app.post('/api/sync/zepp', ensureAuth, async (req, res) => {
+  try {
+    if (!zeppConfigured) {
+      return res.status(400).json({
+        error: 'zepp_not_configured',
+        message: 'Set ZEPP_PHONE and ZEPP_PASSWORD on the server before syncing from Zepp.',
+      });
+    }
+
+    const zeppData = await fetchZeppLatestData(ZEPP_PHONE, ZEPP_PASSWORD);
+    const normalizedPayload = normalizeHealthDataPayload(req.body || {});
+    const syncedAt = new Date().toISOString();
+    const date = getDateOnly(syncedAt);
+
+    await db.read();
+    db.data.steps = db.data.steps || [];
+    db.data.healthData = db.data.healthData || [];
+
+    const preservedSteps = db.data.steps.filter(
+      (item) => !(item.uid === req.user.id && item.source === 'zepp' && item.date === date)
+    );
+    const preservedHealthData = db.data.healthData.filter(
+      (item) => !(item.uid === req.user.id && item.source === 'zepp' && item.date === date)
+    );
+
+    let syncedSteps = 0;
+    if (zeppData.stepCount > 0) {
+      const zeppStepEntry = {
+        id: nanoid(),
+        uid: req.user.id,
+        count: zeppData.stepCount,
+        date,
+        source: 'zepp',
+        created: syncedAt,
+      };
+      db.data.steps = [zeppStepEntry, ...preservedSteps];
+      syncedSteps = 1;
+    } else {
+      db.data.steps = preservedSteps;
+    }
+
+    const zeppHealthEntry = {
+      id: nanoid(),
+      uid: req.user.id,
+      caloriesBurned: zeppData.caloriesBurned,
+      exerciseMinutes: normalizedPayload.exerciseMinutes,
+      standHours: normalizedPayload.standHours,
+      restingHeartRate: normalizedPayload.restingHeartRate,
+      respiratoryRate: normalizedPayload.respiratoryRate,
+      sleepDuration: normalizedPayload.sleepDuration,
+      sleepQuality: normalizedPayload.sleepQuality,
+      sleepStages: normalizedPayload.sleepStages,
+      source: 'zepp',
+      date,
+      created: syncedAt,
+      raw: zeppData.raw || null,
+    };
+    db.data.healthData = [zeppHealthEntry, ...preservedHealthData];
+    await db.write();
+
+    return res.json({
+      ok: true,
+      provider: 'zepp',
+      stepsSynced: syncedSteps,
+      healthDataSynced: 1,
+      data: withLegacyHealthAliases(zeppHealthEntry),
+      message: 'Zepp sync completed.',
+    });
+  } catch (err) {
+    console.error('zepp sync error', err);
+    return res.status(500).json({
+      error: 'zepp_sync_failed',
+      message: err?.message || 'Failed to sync data from Zepp right now.',
+    });
+  }
+});
+
+app.get('/api/health-data', ensureAuth, async (req, res) => {
+  await db.read();
+  db.data.healthData = db.data.healthData || [];
+  const items = db.data.healthData.filter((x) => x.uid === req.user.id).map(withLegacyHealthAliases);
+  res.json(items);
+});
+
+app.post('/api/health-data', ensureAuth, async (req, res) => {
+  await db.read();
+  db.data.healthData = db.data.healthData || [];
+  const normalizedPayload = normalizeHealthDataPayload(req.body || {});
+  const item = {
+    id: nanoid(),
+    uid: req.user.id,
+    caloriesBurned: normalizedPayload.caloriesBurned,
+    exerciseMinutes: normalizedPayload.exerciseMinutes,
+    standHours: normalizedPayload.standHours,
+    restingHeartRate: normalizedPayload.restingHeartRate,
+    respiratoryRate: normalizedPayload.respiratoryRate,
+    sleepDuration: normalizedPayload.sleepDuration,
+    sleepQuality: normalizedPayload.sleepQuality,
+    sleepStages: normalizedPayload.sleepStages,
+    source: normalizedPayload.source,
+    date: normalizedPayload.date,
+    created: new Date().toISOString(),
+  };
+  db.data.healthData.unshift(item);
+  await db.write();
+  res.status(201).json(withLegacyHealthAliases(item));
+});
+
+app.get('/api/health-data/summary', ensureAuth, async (req, res) => {
+  await db.read();
+  db.data.healthData = db.data.healthData || [];
+  const items = db.data.healthData
+    .filter((x) => x.uid === req.user.id)
+    .sort((a, b) => new Date(b.date || b.created || 0) - new Date(a.date || a.created || 0));
+  const latest = items[0] || null;
+  return res.json({ latest: withLegacyHealthAliases(latest), count: items.length });
 });
 
 // GitHub Webhook endpoint with signature verification

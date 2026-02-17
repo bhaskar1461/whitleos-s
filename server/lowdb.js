@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 
 const file = path.join(__dirname, 'db.json');
-const initialData = { journal: [], steps: [], meals: [], workouts: [], webhooks: [] };
+const initialData = { journal: [], steps: [], meals: [], workouts: [], healthData: [], webhooks: [], connections: [] };
 if (!fs.existsSync(file)) {
   fs.writeFileSync(file, JSON.stringify(initialData, null, 2));
 }

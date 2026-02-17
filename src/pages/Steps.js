@@ -26,6 +26,7 @@ function Steps() {
   const [steps, setSteps] = useState([]);
   const [providers, setProviders] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [syncingZepp, setSyncingZepp] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
 
   const fetchProviders = async () => {
@@ -89,6 +90,29 @@ function Steps() {
     }
   };
 
+  const handleZeppSync = async () => {
+    try {
+      setSyncingZepp(true);
+      setSyncMessage('');
+      const res = await fetch('/api/sync/zepp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSyncMessage(data.message || 'Zepp sync failed.');
+        return;
+      }
+      setSyncMessage(`Synced ${data.stepsSynced} step records from Zepp.`);
+      fetchSteps();
+    } catch (_err) {
+      setSyncMessage('Zepp sync failed. Please try again.');
+    } finally {
+      setSyncingZepp(false);
+    }
+  };
+
   const streak = getStreak([...steps].sort((a, b) => new Date(b.date) - new Date(a.date)));
 
   return (
@@ -113,8 +137,17 @@ function Steps() {
             Login with <Link to="/auth" className="text-blue-700 underline">Google</Link> to enable Google Fit sync.
           </div>
         )}
+        {providers?.zepp?.connected ? (
+          <button
+            onClick={handleZeppSync}
+            disabled={syncingZepp}
+            className="ml-0 mt-3 bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 disabled:opacity-60"
+          >
+            {syncingZepp ? 'Syncing Zepp...' : 'Sync from Zepp'}
+          </button>
+        ) : null}
         <div className="text-xs text-gray-500 mt-3">
-          Apple Health: requires iOS HealthKit bridge app. Zepp: sync Zepp app to Google Fit, then sync here.
+          Apple Health: requires iOS HealthKit bridge app. Zepp direct sync appears when server ZEPP credentials are configured.
         </div>
         {syncMessage ? <div className="text-sm mt-3 text-gray-700">{syncMessage}</div> : null}
       </div>
