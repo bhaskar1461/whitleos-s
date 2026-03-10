@@ -6,24 +6,20 @@
   },
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/[...path]"
-    },
-    {
       "source": "/auth/:path*",
-      "destination": "/api/[...path]"
+      "destination": "/api/auth/:path*"
     },
     {
       "source": "/logout",
-      "destination": "/api/[...path]"
+      "destination": "/api/logout"
     },
     {
       "source": "/webhook",
-      "destination": "/api/[...path]"
+      "destination": "/api/webhook"
     },
     {
       "source": "/healthz",
-      "destination": "/api/[...path]"
+      "destination": "/api/healthz"
     }
   ]
 }
