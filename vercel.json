@@ -4,33 +4,26 @@
       "maxDuration": 10
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/[...path].js"
+      "source": "/api/:path*",
+      "destination": "/api/[...path]"
     },
     {
-      "src": "/auth/(.*)",
-      "dest": "/api/[...path].js"
+      "source": "/auth/:path*",
+      "destination": "/api/[...path]"
     },
     {
-      "src": "/logout",
-      "dest": "/api/[...path].js"
+      "source": "/logout",
+      "destination": "/api/[...path]"
     },
     {
-      "src": "/webhook",
-      "dest": "/api/[...path].js"
+      "source": "/webhook",
+      "destination": "/api/[...path]"
     },
     {
-      "src": "/healthz",
-      "dest": "/api/[...path].js"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/.*",
-      "dest": "/index.html"
+      "source": "/healthz",
+      "destination": "/api/[...path]"
     }
   ]
 }
