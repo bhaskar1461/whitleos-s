@@ -7,23 +7,23 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/$1"
+      "dest": "/api/[...path].js"
     },
     {
       "src": "/auth/(.*)",
-      "dest": "/api/auth/$1"
+      "dest": "/api/[...path].js"
     },
     {
       "src": "/logout",
-      "dest": "/api/logout"
+      "dest": "/api/[...path].js"
     },
     {
       "src": "/webhook",
-      "dest": "/api/webhook"
+      "dest": "/api/[...path].js"
     },
     {
       "src": "/healthz",
-      "dest": "/api/healthz"
+      "dest": "/api/[...path].js"
     },
     {
       "handle": "filesystem"
