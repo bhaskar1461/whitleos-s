@@ -8,6 +8,8 @@ This repo is configured so one Vercel project can serve:
 
 The routing is defined in `vercel.json`.
 
+This guide applies to the active Node/React runtime. The Python `app/` folder is not required for the main deployment flow.
+
 ### 1) Create project
 - Import this repo in Vercel.
 - Framework preset: Create React App.

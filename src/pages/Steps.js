@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 
 function getStreak(steps) {
   let streak = 0;
   let prevDate = null;
-  for (const s of steps) {
-    if (s.count > 0) {
-      const currDate = new Date(s.date);
-      if (!prevDate || (prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24) === 1) {
-        streak++;
-        prevDate = currDate;
+  for (const step of steps) {
+    if (step.count > 0) {
+      const currentDate = new Date(step.date);
+      if (!prevDate || (prevDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24) === 1) {
+        streak += 1;
+        prevDate = currentDate;
       } else {
         break;
       }
@@ -40,7 +40,7 @@ function Steps() {
     const res = await apiFetch('/api/steps');
     if (res.status === 401) return setSteps([]);
     const data = await res.json();
-    setSteps(data);
+    setSteps(Array.isArray(data) ? data : []);
   };
 
   useEffect(() => {
@@ -48,8 +48,8 @@ function Steps() {
     fetchProviders();
   }, []);
 
-  const handleAddSteps = async (e) => {
-    e.preventDefault();
+  const handleAddSteps = async (event) => {
+    event.preventDefault();
     if (!count || !date) return;
     await apiFetch('/api/steps', {
       method: 'POST',
@@ -88,73 +88,105 @@ function Steps() {
     }
   };
 
-  const streak = getStreak([...steps].sort((a, b) => new Date(b.date) - new Date(a.date)));
+  const sortedSteps = useMemo(() => [...steps].sort((a, b) => new Date(b.date) - new Date(a.date)), [steps]);
+  const streak = getStreak(sortedSteps);
+  const totalSteps = sortedSteps.reduce((sum, item) => sum + Number(item.count || 0), 0);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-      <h2 className="text-3xl font-bold mb-4">Steps Tracker</h2>
-      <div className="mb-4 text-lg font-semibold text-green-700">
-        Current Streak: {streak} day{streak !== 1 ? 's' : ''}
-      </div>
-
-      <div className="w-full max-w-xl bg-white rounded border p-4 mb-5">
-        <h3 className="font-semibold mb-2">Health App Sync</h3>
-        {providers?.googleFit?.connected ? (
-          <button
-            onClick={handleGoogleFitSync}
-            disabled={syncing}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-60"
-          >
-            {syncing ? 'Syncing...' : 'Sync from Google Fit'}
-          </button>
-        ) : (
-          <div className="text-sm text-gray-700">
-            Login with <Link to="/auth" className="text-blue-700 underline">Google</Link> to enable Google Fit sync.
-          </div>
-        )}
-        <div className="text-xs text-gray-500 mt-3">
-          Google Fit sync is available after signing in with Google.
-        </div>
-        {syncMessage ? <div className="text-sm mt-3 text-gray-700">{syncMessage}</div> : null}
-      </div>
-
-      <form onSubmit={handleAddSteps} className="flex flex-col md:flex-row gap-2 mb-6 w-full max-w-xl">
-        <input
-          type="number"
-          placeholder="Steps"
-          value={count}
-          onChange={(e) => setCount(e.target.value)}
-          className="px-3 py-2 border rounded w-full"
-          required
-        />
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="px-3 py-2 border rounded w-full"
-          required
-        />
-        <button type="submit" className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700">
-          Add
-        </button>
-      </form>
-
-      <div className="w-full max-w-xl">
-        <h3 className="text-xl font-semibold mb-2">Your Steps</h3>
-        <ul className="divide-y divide-gray-200">
-          {steps.map((s) => (
-            <li key={s.id} className="flex justify-between items-center py-2">
-              <div>
-                <span className="font-medium">{s.count}</span> steps on {s.date}
-                {s.source === 'google_fit' ? <span className="text-xs text-blue-700 ml-2">Google Fit</span> : null}
+    <div className="page-shell pt-4">
+      <div className="site-shell space-y-6">
+        <section className="glass-panel-strong rounded-[32px] p-6 md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+            <div>
+              <div className="pill">Movement tracking</div>
+              <h1 className="mt-4 font-['Space_Grotesk'] text-3xl font-bold text-white md:text-4xl">Protect your step rhythm without wasting screen space.</h1>
+              <p className="mt-4 max-w-2xl leading-7 text-slate-300">
+                Log steps manually or connect Google Fit. This page now keeps your key actions, streak, and recent
+                records in one compact mobile-friendly flow.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="stat-card">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Current streak</div>
+                <div className="mt-2 text-3xl font-bold text-white">{streak}</div>
+                <div className="mt-2 text-sm text-slate-400">day{streak !== 1 ? 's' : ''} in sequence</div>
               </div>
-              <button onClick={() => handleDelete(s.id)} className="text-red-500 hover:underline">
-                Delete
+              <div className="stat-card">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Total logged</div>
+                <div className="mt-2 text-3xl font-bold text-white">{new Intl.NumberFormat().format(totalSteps)}</div>
+                <div className="mt-2 text-sm text-slate-400">{sortedSteps.length} records captured</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <section className="glass-panel rounded-[28px] p-5 md:p-6">
+            <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-white">Health app sync</h2>
+            <p className="mt-2 text-sm leading-7 text-slate-300">
+              Sign in with Google to import your step history and workouts from Google Fit.
+            </p>
+            <div className="mt-5">
+              {providers?.googleFit?.connected ? (
+                <button onClick={handleGoogleFitSync} disabled={syncing} className="btn-primary w-full justify-center disabled:opacity-60">
+                  {syncing ? 'Syncing...' : 'Sync from Google Fit'}
+                </button>
+              ) : (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4 text-sm text-slate-300">
+                  Login with <Link to="/auth" className="text-sky-200 underline">Google</Link> to enable Google Fit sync.
+                </div>
+              )}
+              {syncMessage ? <div className="mt-4 rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-sm text-slate-200">{syncMessage}</div> : null}
+            </div>
+
+            <form onSubmit={handleAddSteps} className="mt-6 space-y-3">
+              <input
+                type="number"
+                placeholder="Steps"
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                className="field"
+                required
+              />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field" required />
+              <button type="submit" className="btn-secondary w-full justify-center">
+                Add steps manually
               </button>
-            </li>
-          ))}
-          {steps.length === 0 ? <li className="text-gray-500 py-4 text-center">No steps logged yet.</li> : null}
-        </ul>
+            </form>
+          </section>
+
+          <section className="glass-panel rounded-[28px] p-5 md:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="font-['Space_Grotesk'] text-2xl font-bold text-white">Recent step history</h2>
+                <p className="mt-1 text-sm text-slate-400">Most recent entries first. Google Fit imports are labeled.</p>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {sortedSteps.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-center text-sm text-slate-400">
+                  No steps logged yet.
+                </div>
+              ) : (
+                sortedSteps.map((step) => (
+                  <div key={step.id} className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-lg font-semibold text-white">{new Intl.NumberFormat().format(step.count)} steps</div>
+                      <div className="mt-1 text-sm text-slate-400">
+                        {step.date}
+                        {step.source === 'google_fit' ? <span className="ml-2 text-sky-200">Google Fit</span> : null}
+                      </div>
+                    </div>
+                    <button onClick={() => handleDelete(step.id)} className="text-left text-sm text-red-200 transition hover:text-red-100 sm:text-right">
+                      Delete
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

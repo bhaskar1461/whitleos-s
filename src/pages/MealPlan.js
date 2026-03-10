@@ -153,15 +153,15 @@ function MealPlan() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121214] text-gray-200 px-4 py-8 md:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="bg-[#1a1b1c] border border-gray-700/40 rounded-lg p-6">
-          <h2 className="text-3xl font-extrabold text-white">Indian Meal Plan</h2>
-          <p className="text-gray-300 mt-3 leading-7">
+    <div className="page-shell pt-4">
+      <div className="site-shell space-y-6">
+        <header className="glass-panel-strong rounded-[30px] p-6">
+          <h2 className="text-3xl font-extrabold text-slate-900">Indian Meal Plan</h2>
+          <p className="mt-3 leading-7 text-slate-600">
             Preloaded with common Indian dishes and calorie values per standard serving. Filter dishes, set quantity and
             date, then add directly to your meal log.
           </p>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="mt-2 text-xs text-slate-500">
             Note: Calories are standard reference values and can vary with recipe, oil, and portion size.
           </p>
         </header>
@@ -180,19 +180,19 @@ function MealPlan() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <section className="lg:col-span-2 bg-[#1a1b1c] border border-gray-700/40 rounded-lg p-5">
+          <section className="glass-panel rounded-[28px] p-5">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search dish..."
-                className="md:col-span-2 bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                className="field md:col-span-2"
               />
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                className="field"
               >
                 {DISH_CATEGORIES.map((category) => (
                   <option key={category} value={category}>
@@ -206,28 +206,28 @@ function MealPlan() {
                 max="10"
                 value={quantity}
                 onChange={(e) => setQuantity(Number(e.target.value))}
-                className="bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                className="field"
               />
             </div>
 
-            <div className="text-sm text-gray-400 mb-3">
+            <div className="mb-3 text-sm text-slate-500">
               {filteredDishes.length} dishes found
             </div>
 
             <div className="max-h-[560px] overflow-y-auto pr-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {filteredDishes.map((dish) => (
-                  <div key={dish.id} className="bg-[#111214] border border-gray-700/50 rounded p-3">
+                  <div key={dish.id} className="rounded p-3 border border-slate-200 bg-white/80">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-semibold text-white">{dish.name}</h3>
-                        <p className="text-xs text-gray-400 mt-1">{dish.category} | {dish.serving}</p>
-                        <p className="text-lime-300 text-sm mt-2">{dish.calories} kcal</p>
+                        <h3 className="font-semibold text-slate-900">{dish.name}</h3>
+                        <p className="mt-1 text-xs text-slate-500">{dish.category} | {dish.serving}</p>
+                        <p className="mt-2 text-sm text-sky-700">{dish.calories} kcal</p>
                       </div>
                       <button
                         onClick={() => addDish(dish)}
                         disabled={savingDishId === dish.id}
-                        className="bg-lime-400 text-gray-900 font-semibold px-3 py-1.5 rounded text-xs hover:bg-lime-300 disabled:opacity-60"
+                        className="rounded bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60"
                       >
                         {savingDishId === dish.id ? 'Adding...' : 'Add'}
                       </button>
@@ -238,38 +238,38 @@ function MealPlan() {
             </div>
           </section>
 
-          <section className="bg-[#1a1b1c] border border-gray-700/40 rounded-lg p-5">
+          <section className="glass-panel rounded-[28px] p-5">
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-400 mb-1">Meal date</label>
+                <label className="mb-1 block text-xs text-slate-500">Meal date</label>
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                  className="field"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-[#111214] border border-gray-700/50 rounded p-3">
-                  <div className="text-xs text-gray-400">Calories for date</div>
-                  <div className="text-xl font-bold text-white mt-1">{totalCaloriesForDate} kcal</div>
+                <div className="rounded p-3 border border-slate-200 bg-white/80">
+                  <div className="text-xs text-slate-500">Calories for date</div>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{totalCaloriesForDate} kcal</div>
                 </div>
-                <div className="bg-[#111214] border border-gray-700/50 rounded p-3">
-                  <div className="text-xs text-gray-400">Overall calories</div>
-                  <div className="text-xl font-bold text-white mt-1">{totalCaloriesOverall} kcal</div>
+                <div className="rounded p-3 border border-slate-200 bg-white/80">
+                  <div className="text-xs text-slate-500">Overall calories</div>
+                  <div className="mt-1 text-xl font-bold text-slate-900">{totalCaloriesOverall} kcal</div>
                 </div>
               </div>
             </div>
 
             <div className="mt-5 border-t border-gray-700/40 pt-4">
-              <h3 className="text-white font-semibold mb-3">Add Custom Dish</h3>
+              <h3 className="mb-3 font-semibold text-slate-900">Add Custom Dish</h3>
               <form onSubmit={addCustomDish} className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5">
                 <input
                   type="text"
                   value={customDishName}
                   onChange={(e) => setCustomDishName(e.target.value)}
                   placeholder="Dish name"
-                  className="sm:col-span-2 bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                  className="field sm:col-span-2"
                 />
                 <input
                   type="number"
@@ -277,31 +277,31 @@ function MealPlan() {
                   value={customDishCalories}
                   onChange={(e) => setCustomDishCalories(e.target.value)}
                   placeholder="Calories"
-                  className="bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                  className="field"
                 />
                 <button
                   type="submit"
-                  className="sm:col-span-3 bg-blue-500/90 hover:bg-blue-400 text-white rounded px-3 py-2 text-sm font-semibold"
+                  className="sm:col-span-3 rounded bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500"
                 >
                   Add Custom Meal
                 </button>
               </form>
 
               <div className="border-t border-gray-700/40 pt-4">
-              <h3 className="text-white font-semibold mb-3">Meal Log ({selectedDate})</h3>
+              <h3 className="mb-3 font-semibold text-slate-900">Meal Log ({selectedDate})</h3>
               {loading ? (
-                <p className="text-sm text-gray-400">Loading meals...</p>
+                <p className="text-sm text-slate-500">Loading meals...</p>
               ) : mealsForDate.length === 0 ? (
-                <p className="text-sm text-gray-400">No meals saved for this date.</p>
+                <p className="text-sm text-slate-500">No meals saved for this date.</p>
               ) : (
                 <ul className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
                   {mealsForDate.map((meal) => (
-                    <li key={meal.id} className="bg-[#111214] border border-gray-700/50 rounded p-3">
+                    <li key={meal.id} className="rounded p-3 border border-slate-200 bg-white/80">
                       <div className="flex justify-between gap-3">
                         <div>
-                          <div className="text-sm font-medium text-white">{meal.name}</div>
-                          <div className="text-xs text-gray-400 mt-1">{meal.serving || '1 serving'}</div>
-                          <div className="text-xs text-lime-300 mt-1">{meal.calories} kcal</div>
+                          <div className="text-sm font-medium text-slate-900">{meal.name}</div>
+                          <div className="mt-1 text-xs text-slate-500">{meal.serving || '1 serving'}</div>
+                          <div className="mt-1 text-xs text-sky-700">{meal.calories} kcal</div>
                         </div>
                         <button
                           onClick={() => deleteMeal(meal.id)}

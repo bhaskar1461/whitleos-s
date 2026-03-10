@@ -35,6 +35,38 @@ const {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+const COLLECTION_SCHEMAS = {
+  journal: {
+    title: { type: 'string', required: true, max: 120 },
+    content: { type: 'string', required: true, max: 4000 },
+    date: { type: 'date', required: true },
+  },
+  steps: {
+    count: { type: 'number', required: true, min: 1, max: 100000 },
+    date: { type: 'date', required: true },
+    created: { type: 'datetime' },
+    source: { type: 'enum', values: ['manual', 'google_fit'] },
+  },
+  meals: {
+    name: { type: 'string', required: true, max: 120 },
+    category: { type: 'string', max: 60 },
+    calories: { type: 'number', required: true, min: 0, max: 10000 },
+    baseCalories: { type: 'number', min: 0, max: 10000 },
+    quantity: { type: 'number', min: 1, max: 20 },
+    serving: { type: 'string', max: 120 },
+    date: { type: 'date', required: true },
+    created: { type: 'datetime' },
+  },
+  workouts: {
+    exercise: { type: 'string', required: true, max: 120 },
+    duration: { type: 'number', required: true, min: 1, max: 1440 },
+    date: { type: 'date', required: true },
+    created: { type: 'datetime' },
+    source: { type: 'enum', values: ['manual', 'google_fit'] },
+    sourceSessionId: { type: 'string', max: 200 },
+  },
+};
+
 function normalizeOrigin(origin) {
   if (!origin) return '';
   return String(origin).trim().replace(/\/+$/, '');
@@ -56,6 +88,111 @@ function hasRealCredential(value) {
   if (normalized.includes('your_')) return false;
   if (normalized.includes('placeholder')) return false;
   return true;
+}
+
+function sendError(res, status, error, message, details) {
+  const payload = { error, message };
+  if (details) payload.details = details;
+  return res.status(status).json(payload);
+}
+
+function isValidDateOnly(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime());
+}
+
+function isValidDateTime(value) {
+  return !value || !Number.isNaN(new Date(value).getTime());
+}
+
+function sortByRecent(items) {
+  return [...items].sort((a, b) => {
+    const aValue = new Date(a.date || a.created || 0).getTime();
+    const bValue = new Date(b.date || b.created || 0).getTime();
+    return bValue - aValue;
+  });
+}
+
+function sanitizeString(value) {
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+function validateCollectionPayload(name, payload = {}) {
+  const schema = COLLECTION_SCHEMAS[name];
+  if (!schema) return { value: payload, errors: [] };
+
+  const value = {};
+  const errors = [];
+
+  Object.entries(schema).forEach(([field, rules]) => {
+    let fieldValue = payload[field];
+    if (typeof fieldValue === 'string') fieldValue = sanitizeString(fieldValue);
+
+    const missing = fieldValue === undefined || fieldValue === null || fieldValue === '';
+    if (rules.required && missing) {
+      errors.push(`${field} is required`);
+      return;
+    }
+    if (missing) return;
+
+    if (rules.type === 'string') {
+      if (typeof fieldValue !== 'string') {
+        errors.push(`${field} must be a string`);
+        return;
+      }
+      if (rules.max && fieldValue.length > rules.max) {
+        errors.push(`${field} must be ${rules.max} characters or fewer`);
+        return;
+      }
+      value[field] = fieldValue;
+      return;
+    }
+
+    if (rules.type === 'number') {
+      const parsed = Number(fieldValue);
+      if (!Number.isFinite(parsed)) {
+        errors.push(`${field} must be a number`);
+        return;
+      }
+      if (rules.min !== undefined && parsed < rules.min) {
+        errors.push(`${field} must be at least ${rules.min}`);
+        return;
+      }
+      if (rules.max !== undefined && parsed > rules.max) {
+        errors.push(`${field} must be ${rules.max} or less`);
+        return;
+      }
+      value[field] = parsed;
+      return;
+    }
+
+    if (rules.type === 'date') {
+      if (!isValidDateOnly(fieldValue)) {
+        errors.push(`${field} must be in YYYY-MM-DD format`);
+        return;
+      }
+      value[field] = fieldValue;
+      return;
+    }
+
+    if (rules.type === 'datetime') {
+      if (!isValidDateTime(fieldValue)) {
+        errors.push(`${field} must be a valid ISO date`);
+        return;
+      }
+      value[field] = fieldValue;
+      return;
+    }
+
+    if (rules.type === 'enum') {
+      if (!rules.values.includes(fieldValue)) {
+        errors.push(`${field} must be one of: ${rules.values.join(', ')}`);
+        return;
+      }
+      value[field] = fieldValue;
+    }
+  });
+
+  return { value, errors };
 }
 
 const githubOauthConfigured = hasRealCredential(GITHUB_CLIENT_ID) && hasRealCredential(GITHUB_CLIENT_SECRET);
@@ -251,19 +388,16 @@ if (googleOauthConfigured) {
 
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) return next();
-  res.status(401).json({ error: 'unauthorized' });
+  return sendError(res, 401, 'unauthorized', 'Login is required for this action.');
 }
 
 function ensureAdmin(req, res, next) {
   if (!hasRealCredential(ADMIN_TOKEN || '')) {
-    return res.status(503).json({
-      error: 'admin_not_configured',
-      message: 'Set ADMIN_TOKEN in environment variables to enable admin stats.',
-    });
+    return sendError(res, 503, 'admin_not_configured', 'Set ADMIN_TOKEN in environment variables to enable admin stats.');
   }
   const provided = req.get('x-admin-token');
   if (!provided || provided !== ADMIN_TOKEN) {
-    return res.status(401).json({ error: 'admin_unauthorized' });
+    return sendError(res, 401, 'admin_unauthorized', 'A valid admin token is required.');
   }
   return next();
 }
@@ -316,6 +450,7 @@ function getNumber(value, fallback = 0) {
 }
 
 function normalizeHealthDataPayload(payload = {}) {
+  const normalizedDate = payload.date || getDateOnly(Date.now());
   return {
     caloriesBurned: getNumber(payload.caloriesBurned ?? payload.calories_burned, 0),
     exerciseMinutes: getNumber(payload.exerciseMinutes ?? payload.exercise_minutes, 0),
@@ -327,8 +462,8 @@ function normalizeHealthDataPayload(payload = {}) {
     sleepDuration: payload.sleepDuration ?? payload.sleep_duration ?? null,
     sleepQuality: payload.sleepQuality ?? payload.sleep_quality ?? null,
     sleepStages: payload.sleepStages ?? payload.sleep_stages ?? null,
-    source: payload.source || 'manual',
-    date: payload.date || getDateOnly(Date.now()),
+    source: typeof payload.source === 'string' && payload.source.trim() ? payload.source.trim() : 'manual',
+    date: isValidDateOnly(normalizedDate) ? normalizedDate : getDateOnly(Date.now()),
   };
 }
 
@@ -507,16 +642,19 @@ app.get('/api/auth/providers', (_req, res) => {
   res.json({
     github: { configured: githubOauthConfigured, loginUrl: '/auth/github' },
     google: { configured: googleOauthConfigured, loginUrl: '/auth/google' },
+    runtime: { backend: 'express', storage: hasKvCredentials ? 'kv' : 'lowdb' },
   });
 });
 
 app.get('/auth/github', (req, res, next) => {
-  if (!githubOauthConfigured) {
-    return res.status(503).json({
-      error: 'github_oauth_not_configured',
-      message: 'GitHub OAuth is not configured on server. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.',
-    });
-  }
+    if (!githubOauthConfigured) {
+      return sendError(
+        res,
+        503,
+        'github_oauth_not_configured',
+        'GitHub OAuth is not configured on server. Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET.'
+      );
+    }
   return passport.authenticate('github')(req, res, next);
 });
 app.get(
@@ -535,10 +673,12 @@ app.get(
 
 app.get('/auth/google', (req, res, next) => {
   if (!googleOauthConfigured) {
-    return res.status(503).json({
-      error: 'google_oauth_not_configured',
-      message: 'Google OAuth is not configured on server. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.',
-    });
+    return sendError(
+      res,
+      503,
+      'google_oauth_not_configured',
+      'Google OAuth is not configured on server. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.'
+    );
   }
   return passport.authenticate('google', {
     accessType: 'offline',
@@ -690,10 +830,7 @@ app.post('/api/sync/google-fit', ensureAuth, async (req, res) => {
     const googleConnection = await getGoogleConnectionForUser(req.user);
 
     if (!googleConnection?.accessToken) {
-      return res.status(400).json({
-        error: 'google_not_connected',
-        message: 'Sign in with Google first to sync Google Fit data.',
-      });
+      return sendError(res, 400, 'google_not_connected', 'Sign in with Google first to sync Google Fit data.');
     }
 
     const [stepsFromGoogle, workoutsFromGoogle] = await Promise.all([
@@ -766,6 +903,9 @@ app.post('/api/health-data', ensureAuth, async (req, res) => {
   await ensureDbReady();
   db.data.healthData = db.data.healthData || [];
   const normalizedPayload = normalizeHealthDataPayload(req.body || {});
+  if (!isValidDateOnly(normalizedPayload.date)) {
+    return sendError(res, 400, 'invalid_health_data', 'date must be in YYYY-MM-DD format.');
+  }
   const item = {
     id: nanoid(),
     uid: req.user.id,
@@ -833,13 +973,22 @@ app.post('/webhook', async (req, res) => {
 function collectionRoutes(name) {
   app.get(`/api/${name}`, ensureAuth, async (req, res) => {
     await ensureDbReady();
-    const items = (db.data[name] || []).filter((x) => x.uid === req.user.id);
+    const items = sortByRecent((db.data[name] || []).filter((x) => x.uid === req.user.id));
     res.json(items);
   });
 
   app.post(`/api/${name}`, ensureAuth, async (req, res) => {
     await ensureDbReady();
-    const item = { id: nanoid(), uid: req.user.id, ...req.body };
+    const { value, errors } = validateCollectionPayload(name, req.body || {});
+    if (errors.length) {
+      return sendError(res, 400, 'invalid_payload', 'Request payload is invalid.', errors);
+    }
+    const item = {
+      id: nanoid(),
+      uid: req.user.id,
+      ...value,
+      created: value.created || new Date().toISOString(),
+    };
     db.data[name] = db.data[name] || [];
     db.data[name].unshift(item);
     await db.write();
@@ -849,7 +998,11 @@ function collectionRoutes(name) {
   app.delete(`/api/${name}/:id`, ensureAuth, async (req, res) => {
     await ensureDbReady();
     const id = req.params.id;
+    const existingCount = (db.data[name] || []).length;
     db.data[name] = (db.data[name] || []).filter((x) => !(x.id === id && x.uid === req.user.id));
+    if (db.data[name].length === existingCount) {
+      return sendError(res, 404, 'not_found', `${name.slice(0, -1)} entry was not found.`);
+    }
     await db.write();
     res.status(204).end();
   });
@@ -858,7 +1011,18 @@ function collectionRoutes(name) {
 ['journal', 'steps', 'meals', 'workouts'].forEach(collectionRoutes);
 
 app.get('/', (_req, res) => res.json({ status: 'ok' }));
-app.get('/healthz', (_req, res) => res.json({ ok: true }));
+app.get('/healthz', (_req, res) =>
+  res.json({
+    ok: true,
+    backend: 'express',
+    storage: hasKvCredentials ? 'kv' : 'lowdb',
+    authProviders: {
+      github: githubOauthConfigured,
+      google: googleOauthConfigured,
+    },
+    adminConfigured: hasRealCredential(ADMIN_TOKEN || ''),
+  })
+);
 
 // Serve production build if present
 const buildDir = path.join(__dirname, '..', 'build');

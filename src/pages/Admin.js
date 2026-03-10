@@ -5,9 +5,9 @@ const ENTRY_TYPES = ['journal', 'meals', 'workouts', 'steps', 'healthData', 'use
 
 function StatCard({ label, value }) {
   return (
-    <div className="bg-white border rounded p-4">
-      <div className="text-xs uppercase text-gray-500">{label}</div>
-      <div className="text-2xl font-bold text-gray-900 mt-1">{value}</div>
+    <div className="stat-card">
+      <div className="text-xs uppercase tracking-[0.24em] text-slate-400">{label}</div>
+      <div className="mt-2 text-3xl font-bold text-white">{value}</div>
     </div>
   );
 }
@@ -85,10 +85,9 @@ function Admin() {
         setEntries(null);
         return;
       }
-      const statsData = statsBody.json;
-      const entriesData = entriesBody.json;
-      setStats(statsData);
-      setEntries(entriesData);
+
+      setStats(statsBody.json);
+      setEntries(entriesBody.json);
     } catch (_err) {
       setError('Admin API request failed.');
       setStats(null);
@@ -105,40 +104,23 @@ function Admin() {
   }, [entries, activeType]);
 
   return (
-    <div className="min-h-screen bg-gray-100 px-4 py-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="bg-white border rounded p-6">
-          <h2 className="text-3xl font-bold text-gray-900">Admin Console</h2>
-          <p className="text-gray-600 mt-2">View user activity and all stored entries.</p>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
-            <input
-              type="password"
-              placeholder="Enter ADMIN_TOKEN"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              className="md:col-span-2 border rounded px-3 py-2"
-            />
-            <input
-              type="number"
-              min="10"
-              max="500"
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value) || 100)}
-              className="border rounded px-3 py-2"
-            />
-            <button
-              onClick={loadAdminData}
-              disabled={loading}
-              className="bg-black text-white rounded px-4 py-2 hover:bg-gray-800 disabled:opacity-50"
-            >
-              {loading ? 'Loading...' : 'Load Data'}
+    <div className="page-shell pt-4">
+      <div className="site-shell space-y-6">
+        <section className="glass-panel-strong rounded-[32px] p-6 md:p-8">
+          <h1 className="font-['Space_Grotesk'] text-3xl font-bold text-white md:text-4xl">Admin console</h1>
+          <p className="mt-3 max-w-3xl leading-7 text-slate-300">A cleaner operator view with responsive controls, smaller dead zones, and readable entry inspection on phone and desktop.</p>
+          <div className="mt-6 grid gap-3 md:grid-cols-[2fr_1fr_auto]">
+            <input type="password" placeholder="Enter ADMIN_TOKEN" value={token} onChange={(e) => setToken(e.target.value)} className="field" />
+            <input type="number" min="10" max="500" value={limit} onChange={(e) => setLimit(Number(e.target.value) || 100)} className="field" />
+            <button onClick={loadAdminData} disabled={loading} className="btn-primary justify-center disabled:opacity-50">
+              {loading ? 'Loading...' : 'Load data'}
             </button>
           </div>
-          {error ? <div className="text-sm text-red-600 mt-3">{error}</div> : null}
-        </header>
+          {error ? <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-300/10 px-4 py-3 text-sm text-red-100">{error}</div> : null}
+        </section>
 
         {stats ? (
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Users" value={stats.users?.total ?? 0} />
             <StatCard label="Active 24h" value={stats.users?.active24h ?? 0} />
             <StatCard label="Active 7d" value={stats.users?.active7d ?? 0} />
@@ -146,14 +128,14 @@ function Admin() {
           </section>
         ) : null}
 
-        <section className="bg-white border rounded p-4">
-          <div className="flex flex-wrap gap-2 mb-4">
+        <section className="glass-panel rounded-[28px] p-5 md:p-6">
+          <div className="flex flex-wrap gap-2">
             {ENTRY_TYPES.map((type) => (
               <button
                 key={type}
                 onClick={() => setActiveType(type)}
-                className={`px-3 py-1.5 rounded text-sm border ${
-                  activeType === type ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-300'
+                className={`rounded-full px-4 py-2 text-sm transition ${
+                  activeType === type ? 'bg-white text-slate-950' : 'bg-white/5 text-slate-200 hover:bg-white/10'
                 }`}
               >
                 {type}
@@ -161,16 +143,14 @@ function Admin() {
             ))}
           </div>
 
-          <div className="text-sm text-gray-600 mb-3">
-            Showing {activeItems.length} {activeType} entries
-          </div>
+          <div className="mt-4 text-sm text-slate-400">Showing {activeItems.length} {activeType} entries</div>
 
-          <div className="space-y-3">
+          <div className="mt-5 space-y-3">
             {activeItems.length === 0 ? (
-              <div className="text-sm text-gray-500">No entries loaded for this type.</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-8 text-sm text-slate-400">No entries loaded for this type.</div>
             ) : (
               activeItems.map((item, index) => (
-                <pre key={item.id || `${activeType}-${index}`} className="bg-gray-50 border rounded p-3 text-xs overflow-x-auto">
+                <pre key={item.id || `${activeType}-${index}`} className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-950/70 p-4 text-xs text-slate-200">
                   {JSON.stringify(item, null, 2)}
                 </pre>
               ))

@@ -7,6 +7,12 @@ Fitness tracking app with React frontend + Express backend, OAuth login, Google 
 - Express 5 + Passport (GitHub and Google OAuth)
 - lowdb JSON storage
 
+## Current Runtime
+- Primary app: React frontend in `src/` + Express backend in `server/`
+- Secondary scaffold: FastAPI code in `app/` with Python dependencies in `requirements.txt`
+
+The Node/React path is the active product runtime used by `npm run dev`.
+
 ## Features
 - OAuth login with GitHub and Google
 - Meal, workout, step, and journal tracking
@@ -68,6 +74,11 @@ App URLs:
 - `npm run server`: Express server
 - `npm run dev`: run frontend + backend together
 - `npm run build`: production build
+
+## Notes
+- GitHub login works for standard authentication.
+- Google login enables access to Google Fit sync when credentials are configured.
+- Some older repo files still reference Python/FastAPI work, but that is not the main app path today.
 
 ## Deploy (Vercel Full Stack)
 

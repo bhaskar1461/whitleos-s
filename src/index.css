@@ -1,3 +1,313 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+    --bg-0: #fff8f5;
+    --bg-1: #fff1f3;
+    --bg-2: #f7f7ff;
+    --surface: rgba(255, 255, 255, 0.78);
+    --surface-strong: rgba(255, 255, 255, 0.92);
+    --surface-soft: rgba(221, 42, 123, 0.06);
+    --surface-tint: rgba(129, 52, 175, 0.08);
+    --line: rgba(86, 48, 93, 0.12);
+    --text: #231826;
+    --muted: #6f6174;
+    --accent: #dd2a7b;
+    --accent-2: #f58529;
+    --accent-3: #515bd4;
+    --success-bg: rgba(34, 197, 94, 0.12);
+    --success-text: #15803d;
+    --warning-bg: rgba(245, 133, 41, 0.14);
+    --warning-text: #b45309;
+    --danger-bg: rgba(220, 38, 38, 0.12);
+    --danger-text: #b91c1c;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-0: #0f1014;
+      --bg-1: #151621;
+      --bg-2: #1d1830;
+      --surface: rgba(23, 24, 31, 0.78);
+      --surface-strong: rgba(19, 20, 27, 0.92);
+      --surface-soft: rgba(255, 255, 255, 0.05);
+      --surface-tint: rgba(221, 42, 123, 0.12);
+      --line: rgba(255, 255, 255, 0.09);
+      --text: #f7f3f8;
+      --muted: #b9afbf;
+      --accent: #f77737;
+      --accent-2: #dd2a7b;
+      --accent-3: #515bd4;
+      --success-bg: rgba(34, 197, 94, 0.16);
+      --success-text: #86efac;
+      --warning-bg: rgba(245, 158, 11, 0.14);
+      --warning-text: #fcd34d;
+      --danger-bg: rgba(239, 68, 68, 0.16);
+      --danger-text: #fca5a5;
+    }
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Manrope', sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(221, 42, 123, 0.14), transparent 28%),
+      radial-gradient(circle at top right, rgba(245, 133, 41, 0.14), transparent 24%),
+      radial-gradient(circle at bottom right, rgba(81, 91, 212, 0.12), transparent 26%),
+      linear-gradient(160deg, var(--bg-0), var(--bg-1) 56%, var(--bg-2));
+    color: var(--text);
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  input,
+  select,
+  textarea {
+    color: var(--text);
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply min-h-screen px-4 py-6 md:px-8 md:py-8;
+  }
+
+  .site-shell {
+    @apply mx-auto max-w-7xl;
+  }
+
+  .glass-panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: 0 18px 44px rgba(32, 19, 31, 0.1);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .glass-panel-strong {
+    background: var(--surface-strong);
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 56px rgba(32, 19, 31, 0.14);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em];
+    background: var(--surface-soft);
+    border: 1px solid rgba(221, 42, 123, 0.14);
+    color: var(--accent);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-3 font-semibold transition;
+    background: linear-gradient(135deg, var(--accent-2), var(--accent), var(--accent-3));
+    color: #ffffff;
+    box-shadow: 0 14px 28px rgba(221, 42, 123, 0.22);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 34px rgba(221, 42, 123, 0.26);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-full px-5 py-3 font-semibold transition;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.84);
+  }
+
+  .stat-card {
+    @apply rounded-[28px] p-5;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.62));
+    border: 1px solid var(--line);
+  }
+
+  .field {
+    @apply w-full rounded-2xl px-4 py-3 text-sm outline-none transition;
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid var(--line);
+  }
+
+  .field:focus {
+    border-color: rgba(221, 42, 123, 0.45);
+    box-shadow: 0 0 0 3px rgba(221, 42, 123, 0.12);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .btn-secondary,
+    .field,
+    .stat-card {
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  /* Compatibility overrides for existing Tailwind utility colors used throughout pages. */
+  .glass-panel .text-white,
+  .glass-panel-strong .text-white {
+    color: var(--text) !important;
+  }
+
+  .glass-panel .text-slate-900,
+  .glass-panel-strong .text-slate-900 {
+    color: var(--text) !important;
+  }
+
+  .glass-panel .text-slate-700,
+  .glass-panel-strong .text-slate-700,
+  .glass-panel .text-slate-600,
+  .glass-panel-strong .text-slate-600,
+  .glass-panel .text-slate-500,
+  .glass-panel-strong .text-slate-500,
+  .glass-panel .text-slate-400,
+  .glass-panel-strong .text-slate-400,
+  .glass-panel .text-slate-300,
+  .glass-panel-strong .text-slate-300,
+  .glass-panel .text-gray-400,
+  .glass-panel-strong .text-gray-400,
+  .glass-panel .text-gray-300,
+  .glass-panel-strong .text-gray-300 {
+    color: var(--muted) !important;
+  }
+
+  .glass-panel .text-sky-200,
+  .glass-panel-strong .text-sky-200,
+  .glass-panel .text-sky-700,
+  .glass-panel-strong .text-sky-700,
+  .glass-panel .text-blue-300,
+  .glass-panel-strong .text-blue-300,
+  .glass-panel .text-blue-700,
+  .glass-panel-strong .text-blue-700,
+  .glass-panel .text-lime-300,
+  .glass-panel-strong .text-lime-300 {
+    color: var(--accent) !important;
+  }
+
+  .glass-panel .text-amber-200,
+  .glass-panel-strong .text-amber-200,
+  .glass-panel .text-amber-700,
+  .glass-panel-strong .text-amber-700 {
+    color: var(--warning-text) !important;
+  }
+
+  .glass-panel .text-emerald-200,
+  .glass-panel-strong .text-emerald-200,
+  .glass-panel .text-emerald-700,
+  .glass-panel-strong .text-emerald-700 {
+    color: var(--success-text) !important;
+  }
+
+  .glass-panel .text-red-100,
+  .glass-panel-strong .text-red-100,
+  .glass-panel .text-red-200,
+  .glass-panel-strong .text-red-200,
+  .glass-panel .text-red-300,
+  .glass-panel-strong .text-red-300 {
+    color: var(--danger-text) !important;
+  }
+
+  .glass-panel .bg-white\/5,
+  .glass-panel-strong .bg-white\/5,
+  .glass-panel .bg-white\/80,
+  .glass-panel-strong .bg-white\/80,
+  .glass-panel .bg-white\/70,
+  .glass-panel-strong .bg-white\/70 {
+    background: rgba(255, 255, 255, 0.62) !important;
+  }
+
+  .glass-panel .bg-black\/20,
+  .glass-panel-strong .bg-black\/20,
+  .glass-panel .bg-black\/15,
+  .glass-panel-strong .bg-black\/15,
+  .glass-panel .bg-slate-50,
+  .glass-panel-strong .bg-slate-50,
+  .glass-panel .bg-slate-950\/70,
+  .glass-panel-strong .bg-slate-950\/70,
+  .glass-panel .bg-slate-950\/60,
+  .glass-panel-strong .bg-slate-950\/60 {
+    background: var(--surface-soft) !important;
+  }
+
+  .glass-panel .border-white\/10,
+  .glass-panel-strong .border-white\/10,
+  .glass-panel .border-white\/8,
+  .glass-panel-strong .border-white\/8,
+  .glass-panel .border-slate-200,
+  .glass-panel-strong .border-slate-200,
+  .glass-panel .border-amber-200,
+  .glass-panel-strong .border-amber-200 {
+    border-color: var(--line) !important;
+  }
+
+  .glass-panel .bg-sky-100,
+  .glass-panel-strong .bg-sky-100 {
+    background: rgba(221, 42, 123, 0.1) !important;
+  }
+
+  .glass-panel .bg-emerald-100,
+  .glass-panel-strong .bg-emerald-100,
+  .glass-panel .bg-emerald-300\/20,
+  .glass-panel-strong .bg-emerald-300\/20 {
+    background: var(--success-bg) !important;
+  }
+
+  .glass-panel .bg-amber-50\/80,
+  .glass-panel-strong .bg-amber-50\/80 {
+    background: var(--warning-bg) !important;
+  }
+
+  .glass-panel .bg-red-300\/10,
+  .glass-panel-strong .bg-red-300\/10,
+  .glass-panel .bg-red-500\/10,
+  .glass-panel-strong .bg-red-500\/10 {
+    background: var(--danger-bg) !important;
+  }
+
+  .glass-panel .bg-blue-600,
+  .glass-panel-strong .bg-blue-600,
+  .glass-panel .bg-sky-600,
+  .glass-panel-strong .bg-sky-600,
+  .glass-panel .bg-lime-400,
+  .glass-panel-strong .bg-lime-400 {
+    background: linear-gradient(135deg, var(--accent-2), var(--accent), var(--accent-3)) !important;
+    color: #fff !important;
+  }
+
+  .glass-panel .hover\:bg-blue-700:hover,
+  .glass-panel-strong .hover\:bg-blue-700:hover,
+  .glass-panel .hover\:bg-sky-500:hover,
+  .glass-panel-strong .hover\:bg-sky-500:hover,
+  .glass-panel .hover\:bg-lime-300:hover,
+  .glass-panel-strong .hover\:bg-lime-300:hover {
+    background: linear-gradient(135deg, var(--accent), var(--accent-3)) !important;
+  }
+}

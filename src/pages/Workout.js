@@ -81,18 +81,18 @@ function Workout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#121214] text-gray-200 px-4 py-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="bg-[#1a1b1c] border border-gray-700/40 rounded-lg p-6">
-          <h2 className="text-3xl font-extrabold text-white">Workout Tracker</h2>
-          <p className="text-gray-300 mt-2">
+    <div className="page-shell pt-4">
+      <div className="site-shell max-w-5xl">
+        <div className="glass-panel-strong rounded-[30px] p-6">
+          <h2 className="text-3xl font-extrabold text-slate-900">Workout Tracker</h2>
+          <p className="mt-2 text-slate-600">
             Track workouts manually or sync from Google Fit after Google login.
           </p>
-          <div className="mt-4 text-sm text-lime-300 font-semibold">Total workout time: {totalDuration} min</div>
+          <div className="mt-4 text-sm font-semibold text-sky-700">Total workout time: {totalDuration} min</div>
         </div>
 
-        <div className="bg-[#1a1b1c] border border-gray-700/40 rounded-lg p-6 mt-6">
-          <h3 className="text-xl font-semibold text-white mb-3">Health App Sync</h3>
+        <div className="glass-panel rounded-[28px] p-6 mt-6">
+          <h3 className="mb-3 text-xl font-semibold text-slate-900">Health App Sync</h3>
           {providers?.googleFit?.connected ? (
             <button
               onClick={handleGoogleFitSync}
@@ -102,26 +102,26 @@ function Workout() {
               {syncing ? 'Syncing...' : 'Sync from Google Fit'}
             </button>
           ) : (
-            <div className="text-sm text-gray-300">
-              Login with <Link to="/auth" className="text-blue-300 underline">Google</Link> to enable sync.
+            <div className="text-sm text-slate-600">
+              Login with <Link to="/auth" className="text-sky-700 underline">Google</Link> to enable sync.
             </div>
           )}
-          <div className="text-xs text-gray-400 mt-3">
+          <div className="mt-3 text-xs text-slate-500">
             Google Fit sync is available after signing in with Google.
           </div>
-          {syncMessage ? <div className="text-sm mt-3 text-gray-200">{syncMessage}</div> : null}
+          {syncMessage ? <div className="mt-3 text-sm text-slate-700">{syncMessage}</div> : null}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <div className="bg-[#1a1b1c] border border-gray-700/40 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-4">Add Workout</h3>
+          <div className="glass-panel rounded-[28px] p-6">
+            <h3 className="mb-4 text-xl font-semibold text-slate-900">Add Workout</h3>
             <form onSubmit={handleAddWorkout} className="space-y-3">
               <input
                 type="text"
                 placeholder="Exercise name"
                 value={exercise}
                 onChange={(e) => setExercise(e.target.value)}
-                className="w-full bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                className="field"
                 required
               />
               <input
@@ -130,32 +130,32 @@ function Workout() {
                 placeholder="Duration (minutes)"
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
-                className="w-full bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                className="field"
                 required
               />
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full bg-[#111214] border border-gray-700 rounded px-3 py-2 text-sm"
+                className="field"
                 required
               />
-              <button type="submit" className="bg-lime-400 text-gray-900 font-semibold px-4 py-2 rounded hover:bg-lime-300">
+              <button type="submit" className="rounded bg-sky-600 px-4 py-2 font-semibold text-white hover:bg-sky-500">
                 Add Workout
               </button>
             </form>
           </div>
 
-          <div className="bg-[#1a1b1c] border border-gray-700/40 rounded-lg p-6">
-            <h3 className="text-xl font-semibold text-white mb-4">Workout History</h3>
-            <ul className="divide-y divide-gray-700/50 max-h-[420px] overflow-y-auto">
+          <div className="glass-panel rounded-[28px] p-6">
+            <h3 className="mb-4 text-xl font-semibold text-slate-900">Workout History</h3>
+            <ul className="max-h-[420px] divide-y divide-slate-200 overflow-y-auto">
               {workouts.map((workout) => (
                 <li key={workout.id} className="py-3 flex justify-between items-center gap-3">
                   <div>
-                    <div className="text-white font-medium">{workout.exercise || 'Workout'}</div>
-                    <div className="text-sm text-gray-400">
+                    <div className="font-medium text-slate-900">{workout.exercise || 'Workout'}</div>
+                    <div className="text-sm text-slate-500">
                       {workout.duration} min on {workout.date}
-                      {workout.source === 'google_fit' ? <span className="text-blue-300 ml-2">Google Fit</span> : null}
+                      {workout.source === 'google_fit' ? <span className="ml-2 text-sky-700">Google Fit</span> : null}
                     </div>
                   </div>
                   <button
@@ -166,7 +166,7 @@ function Workout() {
                   </button>
                 </li>
               ))}
-              {workouts.length === 0 ? <li className="py-3 text-gray-400 text-sm">No workouts logged yet.</li> : null}
+              {workouts.length === 0 ? <li className="py-3 text-sm text-slate-500">No workouts logged yet.</li> : null}
             </ul>
           </div>
         </div>

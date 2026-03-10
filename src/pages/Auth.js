@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch, buildBackendUrl } from '../lib/api';
 
 function Auth() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState('');
   const [providerConfig, setProviderConfig] = useState(null);
+  const [loadingProviders, setLoadingProviders] = useState(true);
 
   const fetchUser = async () => {
     try {
@@ -21,7 +23,8 @@ function Auth() {
     apiFetch('/api/auth/providers')
       .then((res) => res.json())
       .then((data) => setProviderConfig(data))
-      .catch(() => setProviderConfig(null));
+      .catch(() => setProviderConfig(null))
+      .finally(() => setLoadingProviders(false));
   }, []);
 
   const handleGitHubLogin = () => {
@@ -47,16 +50,32 @@ function Auth() {
 
   if (user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-        <div className="bg-white p-8 rounded shadow-md w-full max-w-md text-center">
-          {user.avatar ? <img src={user.avatar} alt="avatar" className="w-16 h-16 rounded-full mb-3 mx-auto" /> : null}
-          <h2 className="text-2xl font-semibold">Welcome, {user.username}</h2>
-          <div className="text-sm text-gray-500 mt-2">Signed in via {user.provider || 'oauth'}</div>
-          <button onClick={handleLogout} className="mt-6 bg-red-500 text-white px-6 py-2 rounded hover:bg-red-600">
-            Logout
-          </button>
-          <div className="text-xs text-gray-500 mt-4">
-            For Google Fit sync, sign in with Google and use the Sync button on Steps or Program pages.
+      <div className="page-shell pt-2">
+        <div className="site-shell">
+          <div className="mx-auto max-w-xl glass-panel-strong rounded-[32px] p-8 text-center">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/10">
+              {user.avatar ? (
+                <img src={user.avatar} alt="avatar" className="h-20 w-20 rounded-full object-cover" />
+              ) : (
+                <span className="text-2xl font-bold text-white">{(user.username || 'U').slice(0, 1)}</span>
+              )}
+            </div>
+            <div className="mt-6">
+              <div className="pill">Signed in</div>
+              <h2 className="mt-4 font-['Space_Grotesk'] text-4xl font-bold text-white">Welcome back, {user.username}</h2>
+              <div className="mt-3 text-sm uppercase tracking-[0.24em] text-slate-400">Provider: {user.provider || 'oauth'}</div>
+            </div>
+            <p className="mt-6 leading-7 text-slate-300">
+              Your workspace is ready. If you signed in with Google, head to steps or workouts to sync from Google Fit.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <button onClick={handleLogout} className="btn-secondary">
+                Logout
+              </button>
+              <Link to="/progress" className="btn-primary">
+                Open progress
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -64,26 +83,74 @@ function Auth() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-      <div className="bg-white p-8 rounded shadow-md w-full max-w-sm text-center">
-        <h2 className="text-2xl font-bold mb-6">Sign in</h2>
-        <div className="space-y-3">
-          <button
-            onClick={handleGoogleLogin}
-            className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
-            disabled={providerConfig ? !providerConfig.google?.configured : false}
-          >
-            Continue with Google (Gmail)
-          </button>
-          <button
-            onClick={handleGitHubLogin}
-            className="w-full bg-gray-900 text-white py-2 rounded hover:bg-black disabled:opacity-50"
-            disabled={providerConfig ? !providerConfig.github?.configured : false}
-          >
-            Continue with GitHub
-          </button>
+    <div className="page-shell pt-2">
+      <div className="site-shell">
+        <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+          <section className="glass-panel-strong rounded-[32px] p-8 md:p-10">
+            <div className="pill">Access your wellness workspace</div>
+            <h1 className="mt-5 font-['Space_Grotesk'] text-4xl font-bold leading-tight text-white md:text-5xl">
+              Sign in once. Track daily with less friction.
+            </h1>
+            <p className="mt-5 max-w-xl leading-8 text-slate-300">
+              Use GitHub or Google to unlock meals, workouts, steps, journal entries, and progress summaries. Google
+              login also enables Google Fit sync for movement data.
+            </p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-3">
+              <div className="stat-card">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Login flow</div>
+                <div className="mt-2 text-2xl font-bold text-white">OAuth</div>
+                <div className="mt-2 text-sm text-slate-400">No local password system to manage.</div>
+              </div>
+              <div className="stat-card">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Google path</div>
+                <div className="mt-2 text-2xl font-bold text-white">Fit sync</div>
+                <div className="mt-2 text-sm text-slate-400">Bring in steps and workouts when configured.</div>
+              </div>
+              <div className="stat-card">
+                <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Session</div>
+                <div className="mt-2 text-2xl font-bold text-white">Persistent</div>
+                <div className="mt-2 text-sm text-slate-400">Stay signed in across your daily routine.</div>
+              </div>
+            </div>
+          </section>
+
+          <section className="glass-panel rounded-[32px] p-8">
+            <div className="text-sm uppercase tracking-[0.24em] text-sky-200">Choose provider</div>
+            <h2 className="mt-3 font-['Space_Grotesk'] text-3xl font-bold text-white">Continue into Whitleos</h2>
+            <div className="mt-6 space-y-3">
+              <button
+                onClick={handleGoogleLogin}
+                className="field flex items-center justify-between px-5 py-4 text-left disabled:opacity-50"
+                disabled={providerConfig ? !providerConfig.google?.configured : false}
+              >
+                <span>
+                  <span className="block text-base font-semibold text-white">Continue with Google</span>
+                  <span className="mt-1 block text-sm text-slate-400">Best choice if you want Google Fit sync.</span>
+                </span>
+                <span className="text-sky-200">{providerConfig?.google?.configured ? 'Ready' : 'Setup needed'}</span>
+              </button>
+              <button
+                onClick={handleGitHubLogin}
+                className="field flex items-center justify-between px-5 py-4 text-left disabled:opacity-50"
+                disabled={providerConfig ? !providerConfig.github?.configured : false}
+              >
+                <span>
+                  <span className="block text-base font-semibold text-white">Continue with GitHub</span>
+                  <span className="mt-1 block text-sm text-slate-400">Fast path for standard sign-in and tracking.</span>
+                </span>
+                <span className="text-sky-200">{providerConfig?.github?.configured ? 'Ready' : 'Setup needed'}</span>
+              </button>
+            </div>
+            <div className="mt-5 text-sm text-slate-400">
+              {loadingProviders ? 'Checking provider availability...' : 'Provider status loaded from the backend.'}
+            </div>
+            {message ? (
+              <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+                {message}
+              </div>
+            ) : null}
+          </section>
         </div>
-        {message ? <div className="text-xs text-amber-700 mt-4">{message}</div> : null}
       </div>
     </div>
   );
