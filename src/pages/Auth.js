@@ -6,6 +6,7 @@ function Auth() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState('');
   const [providerConfig, setProviderConfig] = useState(null);
+  const [providerStatusLoaded, setProviderStatusLoaded] = useState(false);
   const [loadingProviders, setLoadingProviders] = useState(true);
 
   const fetchUser = async () => {
@@ -21,9 +22,18 @@ function Auth() {
   useEffect(() => {
     fetchUser();
     apiFetch('/api/auth/providers')
-      .then((res) => res.json())
-      .then((data) => setProviderConfig(data))
-      .catch(() => setProviderConfig(null))
+      .then((res) => {
+        if (!res.ok) throw new Error(`providers_request_failed_${res.status}`);
+        return res.json();
+      })
+      .then((data) => {
+        setProviderConfig(data);
+        setProviderStatusLoaded(true);
+      })
+      .catch(() => {
+        setProviderConfig(null);
+        setProviderStatusLoaded(false);
+      })
       .finally(() => setLoadingProviders(false));
   }, []);
 
@@ -142,7 +152,11 @@ function Auth() {
               </button>
             </div>
             <div className="mt-5 text-sm text-slate-400">
-              {loadingProviders ? 'Checking provider availability...' : 'Provider status loaded from the backend.'}
+              {loadingProviders
+                ? 'Checking provider availability...'
+                : providerStatusLoaded
+                ? 'Provider status loaded from the backend.'
+                : 'Provider status could not be loaded. Check backend/API routing.'}
             </div>
             {message ? (
               <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">

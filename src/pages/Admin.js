@@ -66,6 +66,8 @@ function Admin() {
         const entriesBody = await parseJsonSafely(entriesRes);
         const message = [
           `Failed to load admin data (${statsRes.status}/${entriesRes.status}).`,
+          statsRes.url ? `stats url: ${statsRes.url}` : '',
+          entriesRes.url ? `entries url: ${entriesRes.url}` : '',
           statsBody.json?.message || statsBody.json?.error || statsBody.text?.slice(0, 160) || '',
           entriesBody.json?.message || entriesBody.json?.error || entriesBody.text?.slice(0, 160) || '',
         ]
