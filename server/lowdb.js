@@ -4,10 +4,25 @@ const path = require('path');
 const fs = require('fs');
 
 const isVercel = Boolean(process.env.VERCEL);
+const mongoUri = String(process.env.MONGODB_URI || process.env.COSMOS_MONGO_URI || '').trim();
+const mongoDbName = String(process.env.MONGODB_DB_NAME || process.env.COSMOS_MONGO_DB_NAME || 'whitleos').trim();
+const mongoCollectionName = String(process.env.MONGODB_COLLECTION || process.env.COSMOS_MONGO_COLLECTION || 'appState').trim();
+const mongoStateDocId = String(process.env.MONGODB_STATE_DOC_ID || process.env.COSMOS_MONGO_STATE_DOC_ID || 'whitleos-state-v1').trim();
+const hasMongoCredentials = Boolean(mongoUri);
 const kvRestUrl = process.env.KV_REST_API_URL ? String(process.env.KV_REST_API_URL).replace(/\/+$/, '') : '';
 const kvRestToken = process.env.KV_REST_API_TOKEN ? String(process.env.KV_REST_API_TOKEN).trim() : '';
 const hasKvCredentials = Boolean(kvRestUrl && kvRestToken);
 const kvDataKey = process.env.KV_DATA_KEY || 'whitleos:db:v1';
+
+let MongoClient = null;
+if (hasMongoCredentials) {
+  try {
+    ({ MongoClient } = require('mongodb'));
+  } catch (_err) {
+    console.error('[db] MONGODB_URI is set but mongodb package is not installed. Run: npm install mongodb');
+  }
+}
+const hasMongoConnection = Boolean(hasMongoCredentials && MongoClient);
 
 const initialData = {
   journal: [],
@@ -51,6 +66,54 @@ if (!fs.existsSync(localFile)) {
 }
 const adapter = new JSONFile(localFile);
 const localDb = new Low(adapter, initialData);
+let mongoClientPromise = null;
+
+async function getMongoCollection() {
+  if (!hasMongoConnection) return null;
+
+  if (!mongoClientPromise) {
+    const maxPoolSize = Math.min(100, Math.max(1, Number(process.env.MONGODB_MAX_POOL_SIZE) || 10));
+    mongoClientPromise = (async () => {
+      const client = new MongoClient(mongoUri, {
+        maxPoolSize,
+        retryWrites: true,
+      });
+      await client.connect();
+      return client;
+    })().catch((err) => {
+      mongoClientPromise = null;
+      throw err;
+    });
+  }
+
+  const client = await mongoClientPromise;
+  return client.db(mongoDbName).collection(mongoCollectionName);
+}
+
+async function readFromMongo() {
+  const collection = await getMongoCollection();
+  if (!collection) return initialData;
+
+  const doc = await collection.findOne({ _id: mongoStateDocId });
+  if (!doc || !doc.state || typeof doc.state !== 'object') return initialData;
+  return doc.state;
+}
+
+async function writeToMongo(data) {
+  const collection = await getMongoCollection();
+  if (!collection) return;
+
+  await collection.updateOne(
+    { _id: mongoStateDocId },
+    {
+      $set: {
+        state: data,
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    { upsert: true }
+  );
+}
 
 async function runKvCommand(command) {
   try {
@@ -111,13 +174,26 @@ async function writeToKv(data) {
 class HybridDb {
   constructor() {
     this.data = normalizeData(initialData);
+    this.storage = 'lowdb';
   }
 
   async read() {
+    if (hasMongoConnection) {
+      try {
+        const remoteData = await readFromMongo();
+        this.data = normalizeData(remoteData || initialData);
+        this.storage = 'mongo';
+        return;
+      } catch (err) {
+        console.error('[db] failed reading from MongoDB/Cosmos, trying fallback', err.message || err);
+      }
+    }
+
     if (hasKvCredentials) {
       try {
         const remoteData = await readFromKv();
         this.data = normalizeData(remoteData || initialData);
+        this.storage = 'kv';
         return;
       } catch (err) {
         console.error('[db] failed reading from Vercel KV, falling back to local file', err.message || err);
@@ -126,12 +202,24 @@ class HybridDb {
 
     await localDb.read();
     this.data = normalizeData(localDb.data || initialData);
+    this.storage = 'lowdb';
   }
 
   async write() {
+    if (hasMongoConnection) {
+      try {
+        await writeToMongo(this.data);
+        this.storage = 'mongo';
+        return;
+      } catch (err) {
+        console.error('[db] failed writing to MongoDB/Cosmos, trying fallback', err.message || err);
+      }
+    }
+
     if (hasKvCredentials) {
       try {
         await writeToKv(this.data);
+        this.storage = 'kv';
         return;
       } catch (err) {
         console.error('[db] failed writing to Vercel KV, falling back to local file', err.message || err);
@@ -140,9 +228,17 @@ class HybridDb {
 
     localDb.data = this.data;
     await localDb.write();
+    this.storage = 'lowdb';
   }
 }
 
 const db = new HybridDb();
+const hasPersistentStorage = Boolean(hasMongoConnection || hasKvCredentials);
 
-module.exports = { db, hasKvCredentials };
+function getPreferredStorage() {
+  if (hasMongoConnection) return 'mongo';
+  if (hasKvCredentials) return 'kv';
+  return 'lowdb';
+}
+
+module.exports = { db, hasKvCredentials, hasMongoConnection, hasPersistentStorage, getPreferredStorage };

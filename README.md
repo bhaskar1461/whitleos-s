@@ -5,7 +5,7 @@ Fitness tracking app with React frontend + Express backend, OAuth login, Google 
 ## Stack
 - React 18 (Create React App)
 - Express 5 + Passport (GitHub and Google OAuth)
-- lowdb JSON storage
+- Azure Cosmos DB (Mongo API) / MongoDB, with KV/local fallback
 
 ## Current Runtime
 - Primary app: React frontend in `src/` + Express backend in `server/`
@@ -97,10 +97,10 @@ npm run analyze:push
 
 ## Deploy (Azure App Service)
 
-This repo can run frontend + backend in one Azure Web App (Linux, Node 20 LTS).
+This repo can run frontend + backend in one Azure Web App (Linux, Node 22 LTS recommended).
 
 ### 1) Create Azure Web App
-- Runtime stack: Node 20 LTS
+- Runtime stack: Node 22 LTS (recommended) or Node 20 LTS
 - OS: Linux
 - Startup command: `npm start`
 
@@ -109,6 +109,10 @@ This repo can run frontend + backend in one Azure Web App (Linux, Node 20 LTS).
 NODE_ENV=production
 SESSION_SECRET=<long-random-secret>
 ADMIN_TOKEN=<private-admin-token>
+MONGODB_URI=<cosmos-mongo-connection-string>
+MONGODB_DB_NAME=whitleos
+MONGODB_COLLECTION=appState
+MONGODB_STATE_DOC_ID=whitleos-state-v1
 
 FRONTEND_URL=https://<your-azure-domain>
 FRONTEND_URLS=https://<your-azure-domain>
@@ -128,7 +132,7 @@ REACT_APP_API_BASE_URL=
 REACT_APP_BACKEND_ORIGIN=
 ```
 
-Optional but recommended for persistent data:
+Legacy alternative persistent storage:
 ```env
 KV_REST_API_URL=...
 KV_REST_API_TOKEN=...

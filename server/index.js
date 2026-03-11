@@ -8,7 +8,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { db, hasKvCredentials } = require('./lowdb');
+const { db, hasKvCredentials, hasMongoConnection, hasPersistentStorage, getPreferredStorage } = require('./lowdb');
 const { nanoid } = require('nanoid');
 
 let compression = (_req, _res, next) => next();
@@ -207,11 +207,15 @@ if (!googleOauthConfigured) {
 if (!hasRealCredential(ADMIN_TOKEN || '')) {
   console.warn('[server] Missing ADMIN_TOKEN. Admin stats endpoint will be disabled.');
 }
-if (isProduction && process.env.VERCEL && !hasKvCredentials) {
-  console.warn('[server] Missing KV_REST_API_URL or KV_REST_API_TOKEN. Data will not persist reliably on Vercel.');
+if (isProduction && !hasPersistentStorage) {
+  console.warn('[server] No persistent storage configured. Set MONGODB_URI (Azure Cosmos Mongo API) or KV_REST_API_URL/KV_REST_API_TOKEN.');
 }
 
 let dbInitialized = false;
+
+function getRuntimeStorage() {
+  return db.storage || getPreferredStorage();
+}
 
 async function ensureDbReady() {
   if (dbInitialized) return;
@@ -642,7 +646,7 @@ app.get('/api/auth/providers', (_req, res) => {
   res.json({
     github: { configured: githubOauthConfigured, loginUrl: '/auth/github' },
     google: { configured: googleOauthConfigured, loginUrl: '/auth/google' },
-    runtime: { backend: 'express', storage: hasKvCredentials ? 'kv' : 'lowdb' },
+    runtime: { backend: 'express', storage: getRuntimeStorage(), preferredStorage: getPreferredStorage() },
   });
 });
 
@@ -1015,7 +1019,13 @@ app.get('/healthz', (_req, res) =>
   res.json({
     ok: true,
     backend: 'express',
-    storage: hasKvCredentials ? 'kv' : 'lowdb',
+    storage: getRuntimeStorage(),
+    preferredStorage: getPreferredStorage(),
+    persistentStorage: hasPersistentStorage,
+    storageProviders: {
+      mongo: hasMongoConnection,
+      kv: hasKvCredentials,
+    },
     authProviders: {
       github: githubOauthConfigured,
       google: googleOauthConfigured,
