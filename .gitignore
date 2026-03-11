@@ -94,6 +94,9 @@ jspm_packages/
 tmp/
 temp/
 
+# Analyzer output
+analysis-report.latest.md
+
 # Local database files
 server/db.json
 server/data/

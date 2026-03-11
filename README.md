@@ -74,6 +74,20 @@ App URLs:
 - `npm run server`: Express server
 - `npm run dev`: run frontend + backend together
 - `npm run build`: production build
+- `npm run analyze`: run automated checks and generate `analysis-report.latest.md`
+- `npm run analyze:push`: run checks, then auto-commit + push if checks pass
+
+For tests in analyzer mode, use:
+
+```bash
+npm run analyze -- --with-tests
+```
+
+To analyze, auto-commit, and push on success:
+
+```bash
+npm run analyze:push
+```
 
 ## Notes
 - GitHub login works for standard authentication.

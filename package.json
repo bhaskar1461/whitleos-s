@@ -31,6 +31,8 @@
     "eject": "react-scripts eject",
     "server": "node server/index.js",
     "dev": "concurrently \"npm run server\" \"npm start\"",
+    "analyze": "powershell -ExecutionPolicy Bypass -File tools/analyze-and-push.ps1",
+    "analyze:push": "powershell -ExecutionPolicy Bypass -File tools/analyze-and-push.ps1 -Push",
     "start:all": "./start.sh",
     "stop:all": "./stop.sh"
   },
