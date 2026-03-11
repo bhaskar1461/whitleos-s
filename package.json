@@ -25,12 +25,13 @@
     "tailwindcss": "^3.4.17"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "node server/index.js",
+    "client": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "server": "node server/index.js",
-    "dev": "concurrently \"npm run server\" \"npm start\"",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
     "analyze": "powershell -ExecutionPolicy Bypass -File tools/analyze-and-push.ps1",
     "analyze:push": "powershell -ExecutionPolicy Bypass -File tools/analyze-and-push.ps1 -Push",
     "start:all": "./start.sh",

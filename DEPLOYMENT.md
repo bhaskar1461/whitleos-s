@@ -1,39 +1,45 @@
 # Deployment Guide
 
-## Option A (Recommended): Vercel Full Stack
+## Option A (Recommended): Azure App Service (Single App)
 
-This repo is configured so one Vercel project can serve:
-- React frontend
-- Express backend routes (`/api/*`, `/auth/*`, `/logout`, `/webhook`, `/healthz`)
+This repo can run React frontend + Express backend in one Azure Web App.
 
-The routing is defined in `vercel.json`.
+### 1) Create Azure Web App
+- Runtime stack: Node 20 LTS
+- OS: Linux
+- Startup command: `npm start`
 
-This guide applies to the active Node/React runtime. The Python `app/` folder is not required for the main deployment flow.
+If using Deployment Center (GitHub), enable build during deployment so `npm run build` runs.
 
-### 1) Create project
-- Import this repo in Vercel.
-- Framework preset: Create React App.
-- Build command: `npm run build`
+### 2) Configure App Settings
 
-### 2) Configure environment variables
+Set these in Azure App Service Configuration:
 
 ```env
+NODE_ENV=production
 SESSION_SECRET=<long-random-secret>
 ADMIN_TOKEN=<private-admin-token>
 
-FRONTEND_URL=https://<your-vercel-domain>
-FRONTEND_URLS=https://<your-vercel-domain>
+FRONTEND_URL=https://<your-azure-domain>
+FRONTEND_URLS=https://<your-azure-domain>
 
 GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
-GITHUB_CALLBACK_URL=https://<your-vercel-domain>/auth/github/callback
+GITHUB_CALLBACK_URL=https://<your-azure-domain>/auth/github/callback
 
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-GOOGLE_CALLBACK_URL=https://<your-vercel-domain>/auth/google/callback
+GOOGLE_CALLBACK_URL=https://<your-azure-domain>/auth/google/callback
 ```
 
-Optional (recommended for persistent data on Vercel):
+Leave these unset for same-origin deployment:
+
+```env
+REACT_APP_API_BASE_URL=
+REACT_APP_BACKEND_ORIGIN=
+```
+
+Optional but recommended for persistent data:
 
 ```env
 KV_REST_API_URL=...
@@ -41,51 +47,46 @@ KV_REST_API_TOKEN=...
 KV_DATA_KEY=whitleos:db:v1
 ```
 
-### 3) OAuth provider settings
+### 3) OAuth Provider Settings
 
 GitHub OAuth app:
-- Homepage URL: `https://<your-vercel-domain>`
-- Callback URL: `https://<your-vercel-domain>/auth/github/callback`
+- Homepage URL: `https://<your-azure-domain>`
+- Callback URL: `https://<your-azure-domain>/auth/github/callback`
 
 Google OAuth client:
-- Authorized JavaScript origin: `https://<your-vercel-domain>`
-- Redirect URI: `https://<your-vercel-domain>/auth/google/callback`
+- Authorized JavaScript origin: `https://<your-azure-domain>`
+- Redirect URI: `https://<your-azure-domain>/auth/google/callback`
 
 ### 4) Verify
 
 ```bash
-curl -s https://<your-vercel-domain>/api/auth/providers
-curl -I https://<your-vercel-domain>/auth/github
-curl -I https://<your-vercel-domain>/auth/google
-curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-vercel-domain>/api/admin/stats
-curl -s -H "x-admin-token: <ADMIN_TOKEN>" "https://<your-vercel-domain>/api/admin/entries?limit=20"
+curl -s https://<your-azure-domain>/api/auth/providers
+curl -I https://<your-azure-domain>/auth/github
+curl -I https://<your-azure-domain>/auth/google
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-azure-domain>/api/admin/stats
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" "https://<your-azure-domain>/api/admin/entries?limit=20"
 ```
 
-## Option B: Vercel Frontend + Render Backend
+Open:
+- App: `https://<your-azure-domain>/`
+- Admin: `https://<your-azure-domain>/admin`
 
-Still supported if you prefer keeping backend on Render.
+## Option B: Azure Frontend + Separate Backend
 
-Frontend env (Vercel):
+If you host frontend and backend separately, set frontend build env:
 
 ```env
-REACT_APP_API_BASE_URL=https://<your-render-domain>
-REACT_APP_BACKEND_ORIGIN=https://<your-render-domain>
+REACT_APP_API_BASE_URL=https://<your-backend-domain>
+REACT_APP_BACKEND_ORIGIN=https://<your-backend-domain>
 ```
 
-Backend env (Render):
+And set backend CORS env:
 
 ```env
-SESSION_SECRET=<long-random-secret>
-ADMIN_TOKEN=<private-admin-token>
-
-FRONTEND_URL=https://<your-vercel-domain>
-FRONTEND_URLS=https://<your-vercel-domain>
-
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-GITHUB_CALLBACK_URL=https://<your-render-domain>/auth/github/callback
-
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-GOOGLE_CALLBACK_URL=https://<your-render-domain>/auth/google/callback
+FRONTEND_URL=https://<your-frontend-domain>
+FRONTEND_URLS=https://<your-frontend-domain>
 ```
+
+## Legacy Option: Vercel
+
+Vercel config files remain in this repo, but Azure is now the primary deployment target.

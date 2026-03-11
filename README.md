@@ -70,7 +70,8 @@ App URLs:
 - `GET /api/admin/entries` (requires `x-admin-token` header)
 
 ## Scripts
-- `npm start`: React dev server
+- `npm start`: production Node server (serves API + built React app)
+- `npm run client`: React dev server
 - `npm run server`: Express server
 - `npm run dev`: run frontend + backend together
 - `npm run build`: production build
@@ -94,33 +95,40 @@ npm run analyze:push
 - Google login enables access to Google Fit sync when credentials are configured.
 - Some older repo files still reference Python/FastAPI work, but that is not the main app path today.
 
-## Deploy (Vercel Full Stack)
+## Deploy (Azure App Service)
 
-This repo can run both frontend and backend on one Vercel project.
+This repo can run frontend + backend in one Azure Web App (Linux, Node 20 LTS).
 
-### 1) Vercel Project
-- Import repo to Vercel.
-- Framework preset: Create React App.
-- Keep default build command `npm run build`.
+### 1) Create Azure Web App
+- Runtime stack: Node 20 LTS
+- OS: Linux
+- Startup command: `npm start`
 
-### 2) Required Vercel environment variables
+### 2) Configure Azure App Settings
 ```env
+NODE_ENV=production
 SESSION_SECRET=<long-random-secret>
 ADMIN_TOKEN=<private-admin-token>
 
-FRONTEND_URL=https://<your-vercel-domain>
-FRONTEND_URLS=https://<your-vercel-domain>
+FRONTEND_URL=https://<your-azure-domain>
+FRONTEND_URLS=https://<your-azure-domain>
 
 GITHUB_CLIENT_ID=...
 GITHUB_CLIENT_SECRET=...
-GITHUB_CALLBACK_URL=https://<your-vercel-domain>/auth/github/callback
+GITHUB_CALLBACK_URL=https://<your-azure-domain>/auth/github/callback
 
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-GOOGLE_CALLBACK_URL=https://<your-vercel-domain>/auth/google/callback
+GOOGLE_CALLBACK_URL=https://<your-azure-domain>/auth/google/callback
 ```
 
-Optional but strongly recommended for persistent data on Vercel:
+Keep these unset in Azure unless you intentionally run a separate backend:
+```env
+REACT_APP_API_BASE_URL=
+REACT_APP_BACKEND_ORIGIN=
+```
+
+Optional but recommended for persistent data:
 ```env
 KV_REST_API_URL=...
 KV_REST_API_TOKEN=...
@@ -128,20 +136,20 @@ KV_DATA_KEY=whitleos:db:v1
 ```
 
 ### 3) OAuth Console Values
-- GitHub Homepage URL: `https://<your-vercel-domain>`
-- GitHub callback URL: `https://<your-vercel-domain>/auth/github/callback`
-- Google authorized JavaScript origin: `https://<your-vercel-domain>`
-- Google redirect URI: `https://<your-vercel-domain>/auth/google/callback`
+- GitHub Homepage URL: `https://<your-azure-domain>`
+- GitHub callback URL: `https://<your-azure-domain>/auth/github/callback`
+- Google authorized JavaScript origin: `https://<your-azure-domain>`
+- Google redirect URI: `https://<your-azure-domain>/auth/google/callback`
 
 ### 4) Verification
 ```bash
-curl -s https://<your-vercel-domain>/api/auth/providers
-curl -I https://<your-vercel-domain>/auth/github
-curl -I https://<your-vercel-domain>/auth/google
-curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-vercel-domain>/api/admin/stats
-curl -s -H "x-admin-token: <ADMIN_TOKEN>" "https://<your-vercel-domain>/api/admin/entries?limit=20"
+curl -s https://<your-azure-domain>/api/auth/providers
+curl -I https://<your-azure-domain>/auth/github
+curl -I https://<your-azure-domain>/auth/google
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" https://<your-azure-domain>/api/admin/stats
+curl -s -H "x-admin-token: <ADMIN_TOKEN>" "https://<your-azure-domain>/api/admin/entries?limit=20"
 ```
 
 Open:
-- App: `https://<your-vercel-domain>/`
-- Admin console: `https://<your-vercel-domain>/admin`
+- App: `https://<your-azure-domain>/`
+- Admin console: `https://<your-azure-domain>/admin`
