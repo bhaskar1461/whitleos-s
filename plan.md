@@ -75,7 +75,23 @@ Goal: reduce regression risk while shipping faster.
 - critical flows can be verified before deployment
 - regressions in auth or admin access are caught earlier
 
-## Phase 6: Decide the Backend Future
+## Phase 6: Launch Rust Analytics Sidecar
+Goal: add higher-throughput analytics and ETL capacity without destabilizing the Node runtime.
+
+### Deliverables
+- add a standalone Rust microservice for analytics and ETL
+- connect it to the same MongoDB/Cosmos state document used by the Express app
+- expose a production-ready `/analytics` endpoint for aggregated usage data
+- add an Express integration layer with timeout, auth header, and local fallback
+- persist periodic analytics snapshots into a separate collection for ETL workloads
+
+### Success Criteria
+- the Node backend remains the primary API and auth/session owner
+- heavy analytics work can move off the main Express process
+- analytics failures degrade gracefully to a Node fallback instead of breaking admin flows
+- the Rust service can be deployed independently and scaled separately
+
+## Phase 7: Decide the Backend Future
 Goal: remove strategic drift.
 
 ### Decision Paths
@@ -99,7 +115,8 @@ Goal: remove strategic drift.
 2. modernize `setup.bat`
 3. redesign the landing and progress experiences
 4. refactor backend hotspots out of `server/index.js`
-5. add basic backend smoke coverage
+5. ship the Rust analytics sidecar and ETL path
+6. add basic backend smoke coverage
 
 ## Delivery Rules
 - each iteration must improve both usability and code clarity where possible
@@ -110,6 +127,7 @@ Goal: remove strategic drift.
 ## Risks
 - trying to improve visuals without fixing structure will create fragile UI
 - trying to overengineer the backend too early will slow delivery
+- adding analytics load to the Node monolith would increase latency on auth and CRUD paths
 - leaving both backend directions alive without a decision will keep creating waste
 
 ## Definition of Winning

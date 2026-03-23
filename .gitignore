@@ -122,3 +122,5 @@ firebase-debug.*.log
 !public/images/*.gif
 __pycache__/
 *.pyc
+services/rust-analytics/target/
+services/rust-analytics/.env

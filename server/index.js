@@ -10,6 +10,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { db, hasKvCredentials, hasMongoConnection, hasPersistentStorage, getPreferredStorage } = require('./lowdb');
 const { nanoid } = require('nanoid');
+const { fetchRustAnalytics, hasRustAnalyticsConfig } = require('./services/rustAnalyticsClient');
+const { buildAnalyticsPayload } = require('./services/localAnalyticsFallback');
 
 let compression = (_req, _res, next) => next();
 try {
@@ -816,6 +818,39 @@ app.get('/api/admin/entries', ensureAdmin, async (req, res) => {
     connections: getItems('connections'),
     webhooks: getItems('webhooks'),
   });
+});
+
+app.get('/api/admin/analytics', ensureAdmin, async (req, res) => {
+  await ensureDbReady();
+
+  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+  const windowDays = Math.min(90, Math.max(1, Number(req.query.windowDays) || 14));
+
+  try {
+    const payload = await fetchRustAnalytics({ limit, windowDays });
+    return res.json({
+      ...payload,
+      source: {
+        ...(payload.source || {}),
+        proxiedBy: 'express',
+      },
+    });
+  } catch (err) {
+    console.error('[analytics] Rust analytics unavailable, using local fallback:', err.message || err);
+
+    const payload = buildAnalyticsPayload(db.data, {
+      recentActivityLimit: limit,
+      windowDays,
+      storage: getRuntimeStorage(),
+      stateCollection: process.env.MONGODB_COLLECTION || process.env.COSMOS_MONGO_COLLECTION || 'appState',
+      stateDocId: process.env.MONGODB_STATE_DOC_ID || process.env.COSMOS_MONGO_STATE_DOC_ID || 'whitleos-state-v1',
+      proxiedBy: 'express',
+      fallbackReason: err.code || 'rust_analytics_unavailable',
+      mode: hasRustAnalyticsConfig() ? 'fallback' : 'local-only',
+    });
+
+    return res.json(payload);
+  }
 });
 
 app.get('/api/health/providers', ensureAuth, async (req, res) => {
