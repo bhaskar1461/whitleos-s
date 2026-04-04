@@ -1,41 +1,30 @@
-const configuredApiBase =
-  process.env.REACT_APP_API_BASE_URL ||
-  process.env.REACT_APP_BACKEND_ORIGIN ||
-  '';
+export async function apiFetch(path, options = {}) {
+  const { body, headers, ...rest } = options;
 
-const apiBase = configuredApiBase.replace(/\/+$/, '');
-const URL_FALLBACK_ORIGIN = 'http://localhost';
+  const response = await fetch(path, {
+    ...rest,
+    cache: "no-store",
+    headers: {
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(headers || {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
-function normalizePath(path) {
-  if (typeof path !== 'string') return '/';
-  return path.startsWith('/') ? path : `/${path}`;
-}
+  const raw = await response.text();
+  let data = null;
 
-function getPathname(value) {
-  if (!value) return '';
-  try {
-    return new URL(value, URL_FALLBACK_ORIGIN).pathname.replace(/\/+$/, '');
-  } catch (_err) {
-    return '';
-  }
-}
-
-export function buildBackendUrl(path) {
-  if (typeof path === 'string' && /^https?:\/\//i.test(path)) return path;
-  let normalizedPath = normalizePath(path);
-  const basePathname = getPathname(apiBase).toLowerCase();
-  const pathStartsWithApi = /^\/api(?:\/|$)/i.test(normalizedPath);
-
-  // Avoid /api/api/* when API base already includes an /api suffix.
-  if (basePathname.endsWith('/api') && pathStartsWithApi) {
-    normalizedPath = normalizedPath.replace(/^\/api(?=\/|$)/i, '') || '/';
+  if (raw) {
+    try {
+      data = JSON.parse(raw);
+    } catch (_error) {
+      data = { message: raw };
+    }
   }
 
-  if (!apiBase) return normalizedPath;
-  return `${apiBase}${normalizedPath}`;
-}
+  if (!response.ok) {
+    throw new Error(data?.message || "Request failed.");
+  }
 
-export function apiFetch(path, options = {}) {
-  const requestOptions = { ...options, credentials: options.credentials || 'include' };
-  return fetch(buildBackendUrl(path), requestOptions);
+  return data;
 }
